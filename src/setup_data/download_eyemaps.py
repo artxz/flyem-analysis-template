@@ -1,7 +1,7 @@
-"""Download eyemap CSVs from the public eyemap archive into params/eyemaps/.
+"""Download eyemap XLSX files from the public eyemap archive into params/eyemaps/.
 
 Source: https://artxz.github.io/eyemap-archive/ (Reiser Lab, Janelia Research
-Campus). Each dataset/hemisphere CSV has columns p,q,x,y,z[,theta,phi,rootid]
+Campus). Each dataset/hemisphere XLSX has columns p,q,x,y,z[,theta,phi,rootid]
 and is directly usable as the `eyemap_path` argument to
 `connectome_interpreter.hex_heatmap()` and `plot_mollweide_projection()`.
 
@@ -58,19 +58,19 @@ def download_eyemap(
     manifest_url: str = MANIFEST_URL,
     force: bool = False,
 ) -> Path:
-    """Download one dataset/hemisphere eyemap CSV, skipping it if already present.
+    """Download one dataset/hemisphere eyemap XLSX, skipping it if already present.
 
     Args:
         entry: One dataset's manifest entry (from manifest["datasets"]).
         hemisphere: "left" or "right".
         out_dir: Directory to download into; the file is written to
-            `out_dir/<dataset_id>/<hemisphere>.csv`.
+            `out_dir/<dataset_id>/<hemisphere>.xlsx`.
         manifest_url: URL the manifest was fetched from, used to resolve the
-            CSV's relative link.
+            XLSX's relative link.
         force: Re-download even if the destination file already exists.
 
     Returns:
-        Path to the downloaded (or already-present) CSV file.
+        Path to the downloaded (or already-present) XLSX file.
     """
     if hemisphere not in entry["hemispheres"]:
         raise ValueError(
@@ -78,18 +78,18 @@ def download_eyemap(
             f"Available: {sorted(entry['hemispheres'])}"
         )
 
-    dest = out_dir / entry["id"] / f"{hemisphere}.csv"
+    dest = out_dir / entry["id"] / f"{hemisphere}.xlsx"
     if dest.exists() and not force:
         return dest
 
-    csv_url = urljoin(manifest_url, entry["hemispheres"][hemisphere]["files"]["csv"])
+    xlsx_url = urljoin(manifest_url, entry["hemispheres"][hemisphere]["files"]["xlsx"])
     dest.parent.mkdir(parents=True, exist_ok=True)
-    urllib.request.urlretrieve(csv_url, dest)
+    urllib.request.urlretrieve(xlsx_url, dest)
     return dest
 
 
 def main() -> None:
-    """Parse CLI args and download the requested eyemap CSVs from the archive."""
+    """Parse CLI args and download the requested eyemap XLSX files from the archive."""
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -143,7 +143,7 @@ def main() -> None:
         dest = download_eyemap(
             entries_by_id[dataset_id], hemisphere, args.out_dir, force=args.force
         )
-        tqdm.write(f"{dataset_id}/{hemisphere}.csv -> {dest}")
+        tqdm.write(f"{dataset_id}/{hemisphere}.xlsx -> {dest}")
 
 
 if __name__ == "__main__":
