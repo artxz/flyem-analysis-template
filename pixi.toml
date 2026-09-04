@@ -30,6 +30,14 @@ jupyter = ">=1.1.1,<2"
 ipykernel = ">=6.29.5,<7"
 jupytext = ">=1.19.1,<2"
 jupyterlab = ">=4.5.4,<5"
+openpyxl = ">=3.1,<4"
+
+# CPU-only conda-forge build so pip's resolver (see connectome-interpreter's
+# `torch` requirement below) doesn't fall back to a PyPI wheel that bundles
+# its own Intel MKL/OpenMP runtime and conflicts with conda-forge's
+# llvm-openmp (numpy/scipy), crashing the kernel with an OMP #15 duplicate
+# runtime error on Windows.
+pytorch-cpu = ">=2.0"
 
 # Build dependencies for git packages
 setuptools = ">=75"
