@@ -6,6 +6,7 @@ Consumed by `local/s1_malecns_data.py`. Uses tot_weight normalization
 dataset-agnostic lateral-flow builders live in `local/flow.py`.
 """
 from pathlib import Path
+import warnings
 
 from dotenv import find_dotenv
 import numpy as np
@@ -266,6 +267,10 @@ def add_coords2(meta: pd.DataFrame) -> pd.DataFrame:
     Returns:
         Copy of `meta` with a `coords2` column. Idempotent.
     """
+    if "coords2" in meta.columns:
+        warnings.warn("add_coords2: 'coords2' already present, leaving meta unchanged.")
+        return meta.copy()
+
     out = meta.copy()
     x, y = _xy_from_coords(out["coords"])
     x2 = coords2_x(x, out["side"])
