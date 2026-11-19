@@ -1,4 +1,4 @@
-"""Download eyemap XLSX files from the public eyemap archive into params/eyemaps/.
+"""Download eyemap XLSX files from the public eyemap archive into DATA_DIR/eyemaps/.
 
 Source: https://artxz.github.io/eyemap-archive/ (Reiser Lab, Janelia Research
 Campus). Each dataset/hemisphere XLSX has columns p,q,x,y,z[,theta,phi,rootid]
@@ -15,9 +15,13 @@ blocks (see `add_binocular_hex()`). Both hemispheres are numbered in the same
 onto one hexagon; `hex1b`/`hex2b` fix that without disturbing anything that reads
 `hex1`/`hex2`. `which_eye='both'` reads the new pair, one eye reads the old.
 
+The male CNS eyemap (`DEFAULT_EYEMAP`) ships inside the package, so nothing
+needs downloading for it; `eyemap_dir()` finds either copy.
+
 Usage:
-    python src/setup_data/download_eyemaps.py --list
-    python src/setup_data/download_eyemaps.py --dataset eyemap_mcns_f20240701 --hemisphere both
+    pixi run download-eyemaps --list
+    pixi run download-eyemaps --dataset eyemap_mcns_f20240701 --hemisphere both
+    python -m flyem_analysis_starter.eyemap.download --list
 """
 
 from __future__ import annotations
@@ -26,16 +30,28 @@ import argparse
 import io
 import json
 import urllib.request
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin
 
 import pandas as pd
-from dotenv import find_dotenv
 from tqdm import tqdm
 
+from .. import config
+
+__all__ = [
+    "DEFAULT_EYEMAP",
+    "add_binocular_hex",
+    "coords2_x",
+    "download_eyemaps",
+    "eyemap_dir",
+    "hex_b_from_hex",
+]
+
 MANIFEST_URL = "https://artxz.github.io/eyemap-archive/manifest.json"
-DEFAULT_OUT_DIR = Path(find_dotenv()).parent / "params" / "eyemaps"
-DEFAULT_DATASETS = ("eyemap_mcns_f20240701",)
+DEFAULT_EYEMAP = "eyemap_mcns_f20240701"
+DEFAULT_DATASETS = (DEFAULT_EYEMAP,)
 HEMISPHERES = ("left", "right")
 
 # Archive formats we can turn into an eyemap XLSX, in order of preference.
@@ -127,7 +143,85 @@ def download_eyemap(
     return dest
 
 
-def coords2_x(x, side) -> pd.Series:
+def _download_root() -> Path:
+    """Return the folder new eyemap downloads go to, `DATA_DIR/eyemaps`."""
+    return config.DATA_DIR / "eyemaps"
+
+
+def eyemap_dir(name: str = DEFAULT_EYEMAP) -> Path:
+    """Return the folder holding an eyemap's `right.xlsx` / `left.xlsx`.
+
+    Pass the result as `eyemap_dir=` to `connectome_interpreter.hex_heatmap()`
+    and `plot_mollweide_projection()`. A downloaded copy in `DATA_DIR/eyemaps/`
+    wins over the copy bundled with the package.
+
+    Args:
+        name: Eyemap dataset id from the archive (see `pixi run download-eyemaps
+            --list`). Defaults to the male CNS eyemap, which is bundled.
+
+    Returns:
+        The eyemap folder.
+
+    Raises:
+        FileNotFoundError: The eyemap is neither downloaded nor bundled.
+    """
+    for root in (_download_root(), config.params_path("eyemaps")):
+        folder = root / name
+        if any((folder / f"{side}.xlsx").is_file() for side in HEMISPHERES):
+            return folder
+    raise FileNotFoundError(
+        f"Eyemap {name!r} not found in {_download_root()} or the package. "
+        f"Download it with `pixi run download-eyemaps --dataset {name}` or "
+        f"`flyem_analysis_starter.eyemap.download_eyemaps([{name!r}])`."
+    )
+
+
+def download_eyemaps(
+    datasets: Sequence[str] = DEFAULT_DATASETS,
+    hemispheres: Sequence[str] = HEMISPHERES,
+    out_dir: Path | str | None = None,
+    force: bool = False,
+) -> list[Path]:
+    """Download eyemaps from the archive and add the binocular `hex1b`/`hex2b` columns.
+
+    Files already present are kept unless `force` is set.
+
+    Args:
+        datasets: Archive dataset ids (see `pixi run download-eyemaps --list`).
+        hemispheres: Any of `"left"`, `"right"`.
+        out_dir: Folder to download into. Defaults to `DATA_DIR/eyemaps`,
+            where `eyemap_dir()` looks first.
+        force: Re-download and recompute even if the files exist.
+
+    Returns:
+        Paths of the eyemap files, one per dataset and hemisphere.
+
+    Raises:
+        ValueError: A dataset id is not in the archive.
+    """
+    out = Path(out_dir) if out_dir is not None else _download_root()
+    manifest = fetch_manifest()
+    entries_by_id = {entry["id"]: entry for entry in manifest["datasets"]}
+    unknown = set(datasets) - entries_by_id.keys()
+    if unknown:
+        raise ValueError(
+            f"Unknown dataset(s) {sorted(unknown)}. Run with --list to see options."
+        )
+
+    jobs = [(d, h) for d in datasets for h in hemispheres]
+    written = []
+    for dataset_id, hemisphere in tqdm(jobs, desc="Downloading eyemaps"):
+        dest = download_eyemap(entries_by_id[dataset_id], hemisphere, out, force=force)
+        # Add the binocular columns now, so nothing has to derive them later.
+        rewritten = add_binocular_hex(dest, hemisphere, force=force)
+        cols = "/".join(BINOCULAR_HEX_COLS)
+        note = f"+{cols}" if rewritten else f"{cols} already present"
+        tqdm.write(f"{dataset_id}/{hemisphere}.xlsx -> {dest}  ({note})")
+        written.append(dest)
+    return written
+
+
+def coords2_x(x: Any, side: str | Sequence[str] | pd.Series) -> pd.Series:
     """Shift and mirror `x` (= hex2 - hex1) into the two-eye `coords2` frame.
 
     The right eye moves to positive x (`x + COORDS2_X_OFFSET`); the left eye is
@@ -137,7 +231,7 @@ def coords2_x(x, side) -> pd.Series:
     the encoding stays invertible for `plot_mollweide_projection()`.
 
     This is the one definition of the two-eye frame: `hex_b_from_hex()` uses it
-    for the eyemap's `hex1b`/`hex2b` columns and the malecns setup module uses it
+    for the eyemap's `hex1b`/`hex2b` columns and `data.malecns.add_coords2` uses it
     for the neuron table's `coords2` column, so the two cannot drift apart.
 
     Args:
@@ -165,7 +259,9 @@ def coords2_x(x, side) -> pd.Series:
     return out
 
 
-def hex_b_from_hex(hex1, hex2, side) -> tuple[pd.Series, pd.Series]:
+def hex_b_from_hex(
+    hex1: Any, hex2: Any, side: str | Sequence[str] | pd.Series
+) -> tuple[pd.Series, pd.Series]:
     """Re-encode per-eye hex ids into the binocular frame `(hex1b, hex2b)`.
 
     Applies `coords2_x()` to `x = hex2 - hex1`, leaves `y = hex2 + hex1` alone,
@@ -192,7 +288,9 @@ def hex_b_from_hex(hex1, hex2, side) -> tuple[pd.Series, pd.Series]:
     return (y - x_b) // 2, (y + x_b) // 2
 
 
-def add_binocular_hex(eyemap_file: Path, hemisphere: str, force: bool = False) -> bool:
+def add_binocular_hex(
+    eyemap_file: Path | str, hemisphere: str, force: bool = False
+) -> bool:
     """Append `hex1b`/`hex2b` to one hemisphere's eyemap file, rewriting it.
 
     `hex1`/`hex2` and everything else -- including the archive's own `p`/`q`
@@ -250,7 +348,7 @@ def main() -> None:
     parser.add_argument(
         "--out-dir",
         type=Path,
-        default=DEFAULT_OUT_DIR,
+        default=_download_root(),
         help="Directory to download into. Default: %(default)s",
     )
     parser.add_argument(
@@ -263,33 +361,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    manifest = fetch_manifest()
     if args.list:
-        list_datasets(manifest)
+        list_datasets(fetch_manifest())
         return
 
-    entries_by_id = {entry["id"]: entry for entry in manifest["datasets"]}
-    unknown = set(args.dataset) - entries_by_id.keys()
-    if unknown:
-        raise ValueError(
-            f"Unknown dataset(s) {sorted(unknown)}. Run with --list to see options."
-        )
-
     hemispheres = HEMISPHERES if args.hemisphere == "both" else (args.hemisphere,)
-    jobs = [
-        (dataset_id, hemisphere)
-        for dataset_id in args.dataset
-        for hemisphere in hemispheres
-    ]
-    for dataset_id, hemisphere in tqdm(jobs, desc="Downloading eyemaps"):
-        dest = download_eyemap(
-            entries_by_id[dataset_id], hemisphere, args.out_dir, force=args.force
-        )
-        # Add the binocular columns now, so nothing has to derive them later.
-        rewritten = add_binocular_hex(dest, hemisphere, force=args.force)
-        cols = "/".join(BINOCULAR_HEX_COLS)
-        note = f"+{cols}" if rewritten else f"{cols} already present"
-        tqdm.write(f"{dataset_id}/{hemisphere}.xlsx -> {dest}  ({note})")
+    download_eyemaps(args.dataset, hemispheres, out_dir=args.out_dir, force=args.force)
 
 
 if __name__ == "__main__":

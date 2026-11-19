@@ -1,65 +1,135 @@
-""" OLC Client module """
-import warnings
-import os
-from dotenv import load_dotenv, find_dotenv
-from neuprint import Client
+"""Lazy connection to neuPrint.
 
-load_dotenv(find_dotenv())
+Importing this module never touches the network or needs a token. The first
+call to `get_client()` or `connect()` opens the connection.
+
+Server and dataset come from, in order: the arguments, then
+`NEUPRINT_SERVER_URL` / `NEUPRINT_DATASET_NAME` (for example from `.env`), then
+the default dataset in `config.DATASETS`. The token always comes from
+`NEUPRINT_APPLICATION_CREDENTIALS`.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING
+
+from . import config
+
+if TYPE_CHECKING:
+    from neuprint import Client
+
+__all__ = ["NeuprintConnectionError", "connect", "get_client"]
+
+_TOKEN_VAR = "NEUPRINT_APPLICATION_CREDENTIALS"
+_HOW_TO_FIX = (
+    "Copy .env.example to .env (in the project folder, or in your current folder "
+    f"for an installed copy), set {_TOKEN_VAR} to the token from your neuPrint "
+    "account page (https://neuprint.janelia.org/account), and restart the kernel."
+)
+
+_clients: dict[tuple[str, str], Client] = {}
+
+
+class NeuprintConnectionError(RuntimeError):
+    """Raised when no neuPrint connection can be made, with a hint on how to fix it."""
+
+
+def _resolve(server: str | None, dataset: str | None) -> tuple[str, str]:
+    """Return the `(server, dataset name)` to connect to.
+
+    Args:
+        server: Server URL, or `None` for the default.
+        dataset: neuPrint dataset name (`male-cns:v1.0`) or registry tag
+            (`malecns_v1.0`), or `None` for the default.
+
+    Returns:
+        Server URL and neuPrint dataset name.
+    """
+    if dataset in config.DATASETS:
+        ds = config.DATASETS[dataset]
+        return server or ds.server, ds.name
+    default = config.DATASETS[config.DEFAULT_DATASET]
+    if dataset is None:
+        dataset = os.environ.get("NEUPRINT_DATASET_NAME") or default.name
+    if server is None:
+        # A known dataset name picks its own server, unless the env says otherwise.
+        known = {d.name: d.server for d in config.DATASETS.values()}
+        server = os.environ.get("NEUPRINT_SERVER_URL") or known.get(
+            dataset, default.server
+        )
+    return server, dataset
 
 
 def connect(
     verbose: bool = False,
-    instance: str = None,
-    dataset: str = None
+    server: str | None = None,
+    dataset: str | None = None,
 ) -> Client:
-    """Return a neuprint.Client using the environments extracted from .env file and set it as
-    the default client.
+    """Open a neuPrint connection and make it the default client.
 
-    Parameters
-    ----------
-    verbose :   bool, default=False
-                The function prints some verbose output after a successful connection.
-    instance :  str, default=None
-                Provide the URL to a neuprint instance. If no instance is given (the default), the content of the environment variable NEUPRINT_SERVER_URL is used.
-    dataset :   str, default=None
-                If an instance URL is given as a parameter, the `dataset` is considered as the name of the neuprint dataset. If no dataset is give, the content of the environment variable NEUPRINT_DATASET_NAME is used.
+    neuprint-python and navis functions called without `client=` then use it.
+    Repeated calls with the same server and dataset reuse the open connection.
 
-    Returns
-    -------
-    neuprint.Client
-                A client that connects to the configured server.
+    Args:
+        verbose: Print the server, dataset and neuprint-python version.
+        server: neuPrint server URL. Defaults to `NEUPRINT_SERVER_URL`, then
+            the server of the dataset in `config.DATASETS`.
+        dataset: neuPrint dataset name (`male-cns:v1.0`) or registry tag
+            (`malecns_v1.0`). Defaults to `NEUPRINT_DATASET_NAME`, then
+            `config.DEFAULT_DATASET`.
 
+    Returns:
+        The connected `neuprint.Client`.
+
+    Raises:
+        NeuprintConnectionError: No token is set, or the server refused the
+            connection.
     """
-    client = None
-    if instance:
-        np_url = instance
-    else:
-        np_url = os.environ['NEUPRINT_SERVER_URL']
-        if dataset:
-            warnings.warn(f"You are using the default instance '{np_url}' from the environment variable, but specified an alternative data set '{dataset}'. Make sure this is what you want.")
+    import neuprint
 
-    if dataset:
-        np_dta = dataset
-    else:
-        np_dta = os.environ['NEUPRINT_DATASET_NAME']
-        if instance:
-            warnings.warn(f"You specified an alternative instance '{instance}' but use the default dataset '{np_dta}' from the environment variable. That can lead to unexpected results and you might need to specify a dataset, too.")
-
-    try:
-        client = Client(
-            np_url,
-            dataset=np_dta)
-    except RuntimeError:
-        warnings.warn(f"""
-            The connection for instance {np_url} and dataset {np_dta} doesn't work. Please follow the documentation at
-            https://connectome-neuprint.github.io/neuprint-python/docs/index.html
-            to set up your client.
-            """)
-        return False
-    if verbose and isinstance(client, Client):
-        np_version = client.fetch_version()
-        np_profile = client.fetch_profile()
-        print(f"Connected to {np_url}[{np_dta}].")
-        print(f"Client: neuprint-python v{np_version}")
-        print(f"User: {np_profile['Email']} [{np_profile['AuthLevel']}]\n")
+    server, dataset = _resolve(server, dataset)
+    key = (server, dataset)
+    client = _clients.get(key)
+    if client is None:
+        if not os.environ.get(_TOKEN_VAR):
+            raise NeuprintConnectionError(f"No neuPrint token found. {_HOW_TO_FIX}")
+        try:
+            client = neuprint.Client(server, dataset=dataset)
+        except Exception as err:  # neuprint raises RuntimeError and HTTPError
+            raise NeuprintConnectionError(
+                f"Could not connect to {server} [{dataset}]: {err}\n"
+                f"If the token is wrong or expired: {_HOW_TO_FIX}"
+            ) from err
+        _clients[key] = client
+    neuprint.set_default_client(client)
+    if verbose:
+        print(f"Connected to {server} [{dataset}].")
+        print(f"Client: neuprint-python v{neuprint.__version__}")
     return client
+
+
+def get_client(dataset: str | None = None) -> Client:
+    """Return a neuPrint client, connecting on first use.
+
+    With no `dataset`, this is the client from the last `connect()` call, or
+    the default client set some other way (for example a `neuprint.Client`
+    created by hand), or a new connection to the default dataset.
+
+    Args:
+        dataset: neuPrint dataset name or registry tag; `None` for the default.
+
+    Returns:
+        A connected `neuprint.Client`.
+
+    Raises:
+        NeuprintConnectionError: No connection could be made (see `connect`).
+    """
+    if dataset is None:
+        import neuprint
+
+        try:
+            return neuprint.default_client()
+        except Exception:  # neuprint raises RuntimeError when none is set
+            pass
+    return connect(dataset=dataset)

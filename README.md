@@ -1,6 +1,8 @@
-# flyem_analysis_template
+# flyem-analysis-starter
 
-Add your project description here.
+A starting point for analysing FlyEM connectome data (male CNS, FlyWire/FAFB): a reproducible
+Pixi environment, data loaders, a small tested library (`flyem_analysis_starter`) and tutorial
+notebooks. Work in progress; see [docs/plan.md](docs/plan.md).
 
 ## Setup
 
@@ -29,15 +31,19 @@ This starts Jupyter Lab with Jupytext auto-sync enabled — notebooks (`.ipynb`)
 ## Project Structure
 
 ```
-├── pixi.toml                    # Pixi dependency config
-├── pyproject.toml               # Python project metadata + Jupytext config
-├── jupyter_server_config.py     # Notebook ↔ .py auto-sync
-├── .env.example                 # Environment variable template
-├── test_dependencies.py         # Dependency validation script
-├── CLAUDE.md                    # AI assistant context
-└── src/
-    └── flyem_analysis_template/
-        └── __init__.py
+├── pixi.toml                    # environment and tasks
+├── pyproject.toml               # package metadata, Jupytext and pytest config
+├── .env.example                 # neuPrint token and optional overrides
+├── src/flyem_analysis_starter/  # the library (installed editable by `pixi install`)
+│   ├── config.py                # DATA_DIR, CACHE_DIR, dataset registry
+│   ├── neuprint_client.py       # lazy neuPrint connection
+│   ├── data/                    # load meta, prop, inprop, flow layers
+│   ├── eyemap/                  # eye maps, hex coordinates
+│   ├── plotting/                # neurons over brain outlines
+│   └── params/                  # lookup tables shipped with the package
+├── tutorials/                   # notebooks (.ipynb paired with .py)
+├── deferred/                    # code waiting for missing dependencies
+└── tests/
 ```
 
 ## Environment Variables

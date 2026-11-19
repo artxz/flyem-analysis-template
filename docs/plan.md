@@ -156,33 +156,44 @@ Commit what exists before restructuring anything, so the reorganisation is revie
 
 Turn `src/` into a real package so notebooks and build code import it the same way everywhere, with no path setup and no dependence on `.env`.
 
-- [ ] Rename to `src/flyem_analysis_starter/` following the mapping table, with `__init__.py` in the package and each subpackage (heavy submodules imported lazily); `git mv params src/flyem_analysis_starter/params`; move `ol_rf.py` to `deferred/`
-- [ ] `pyproject.toml`:
+- [x] Rename to `src/flyem_analysis_starter/` following the mapping table, with `__init__.py` in the package and each subpackage (heavy submodules imported lazily); `git mv params src/flyem_analysis_starter/params`; move `ol_rf.py` to `deferred/`
+  - Done in a pure-rename commit (`3e476d6`), so `git log --follow` works. Subpackages import submodules on first attribute access (`_lazy.py`); `import flyem_analysis_starter` takes about 0.3 s
+- [x] `pyproject.toml`:
   - set `[project].name = "flyem-analysis-starter"` and add `flyem-analysis-starter = { path = ".", editable = true }` under `[pypi-dependencies]` in `pixi.toml`
   - fix the build backend (`setuptools.build_meta`)
   - declare the package data (`[tool.setuptools.package-data] flyem_analysis_starter = ["params/**/*"]`)
   - list `platformdirs` and `python-dotenv` as dependencies (`platformdirs` is only transitive today)
   - drop the placeholder `src/flyem_analysis_template` reference from the README
-- [ ] Add `config.py`. It never uses `.env` to find the root, and never `PIXI_PROJECT_ROOT`, which in another project points at that project. It holds:
+  - Done. Core dependencies are only what `config`, `data` and `eyemap` need (numpy, pandas, scipy, platformdirs, python-dotenv, tqdm, openpyxl). The heavy stack sits in extras (`neuprint`, `plotting`, `analysis`, `all`), so pixi's PyPI resolver is not asked to re-resolve the conda packages. Version `0.1.0.dev0`
+- [x] Add `config.py`. It never uses `.env` to find the root, and never `PIXI_PROJECT_ROOT`, which in another project points at that project. It holds:
   - `PROJECT_ROOT`, `DATA_DIR`, `CACHE_DIR` and the `params` resource root, as in "Where files live", plus `MODEL_COMPARISON_DIR`
   - a dataset registry mapping each tag to its neuPrint server and dataset name (`malecns_v1.0 → neuprint.janelia.org / male-cns:v1.0`, `flywire-fafb-v783b → neuprint-cns.janelia.org / flywire-fafb:v783b`)
   - the build constants `SIDE_CHAR`, `FLYWIRE_SIDE_CHAR`, `HIT_THRE = 0.1`, `N_FLOW = 20`
   - defaults for `SEGMENTATION_SOURCE` and `SHELL_SOURCE`
 
   `.env` supplies only secrets and overrides. At import, before reading any override, `config.py` calls `load_dotenv(..., override=False)` on `PROJECT_ROOT / ".env"` in a clone, or on `Path.cwd() / ".env"` in an installed copy. A missing file is fine, and no other module calls `find_dotenv`
-- [ ] Replace every module-level `Path(find_dotenv()).parent` anchor (`malecns.py:45`, `download_eyemaps.py:37`, `roi_assets.py:23`, `make_roi_assets.py:53`, `plotter.py:89,127,211,290,1445`):
+
+  Done. Also holds `dataset_tag()` (neuPrint name → registry tag) and `FLYWIRE_DATASET`. `FLYWIRE_SIDE_CHAR = "r"` is a guess: `local/s2_layers.py` imports it, but the value was in the missing `utils/config.py`. Confirm it before the FlyWire flow build
+- [x] Replace every module-level `Path(find_dotenv()).parent` anchor (`malecns.py:45`, `download_eyemaps.py:37`, `roi_assets.py:23`, `make_roi_assets.py:53`, `plotter.py:89,127,211,290,1445`):
   - `PARAMS_DIR` / `ROI_DIR` become a `params_path(*parts)` helper over the package resources
   - `download_eyemaps` writes to `DATA_DIR/eyemaps/`, and the eyemap lookup checks there before the bundled copy
   - the five `plotter.py` caches go under `CACHE_DIR`
   - `make_roi_assets.py` writes ROI assets into `PROJECT_ROOT`'s package `params/rois/` and its raw caches into `CACHE_DIR`
   - `plotter.py` / `make_roi_assets.py` read the two sources from config instead of asserting on `os.environ`
   - skeleton and mesh caches are keyed by the registry tag (`CACHE_DIR/skeletons/malecns_v1.0/`, via reverse lookup of `client.dataset`). Never the raw `male-cns:v1.0`: a colon is invalid on Windows
-- [ ] Data loaders take an optional `data_dir=` (default `DATA_DIR`). A missing file raises `FileNotFoundError` that names both `pixi run fetch-data` and `fetch_data()`
-- [ ] Make the neuPrint connection lazy so importing never needs a network or token; the getter raises a clear error naming `.env` and `NEUPRINT_APPLICATION_CREDENTIALS` instead of returning `False`, and the `plotter` fetches go through it
-- [ ] Rewrite every `utils.*` / `setup_data.*` import: internal (`malecns.py:30`, `plotter.py:35-36`), all six notebooks including mid-notebook imports (`plotting.ipynb`: `utils.plotter`, incl. private `_CNS_RANGE_X/Y` → make public; `receptive_fields.ipynb`: `setup_data.malecns`), and Pixi task paths (`download-eyemaps`)
-- [ ] Tests in `tests/`: every module imports with no `.env`; `import flyem_analysis_starter` works from a directory other than the root; no notebook `.py` pair contains `from utils` or `setup_data`; a temporary `.env` setting `FLYEM_DATA_DIR` changes `DATA_DIR`, and `FLYEM_CACHE_DIR` changes `CACHE_DIR`; no cache path contains `:`; the built wheel contains `params/rois/roi_meshes/brain_shell.npz` and `params/data_manifest.json`; the wheel installed (not editable) into a temporary environment outside the repo imports, reads a `params` file, has `PROJECT_ROOT is None`, and resolves `DATA_DIR` / `CACHE_DIR` to the `platformdirs` locations; `load_inprop()` equals `build_sparse_matrices`' inprop (CSC, float32) on a toy edge list; `add_coords2` on meta without `coords2` reproduces the cached column; each subpackage's `__all__` matches `tests/public_api.txt`, so removing or renaming a public name fails until that file and the changelog are updated on purpose. Mark tests that need data or a token with `@pytest.mark.data` / `@pytest.mark.neuprint`
-- [ ] Give every name in `__all__` a docstring and type hints; anything not meant to be stable is prefixed with `_` or left out of `__all__`
+  - Done. Synapse and ROI caches are keyed by dataset too. The tag comes from the current default client, or else from the dataset `connect()` would pick, so cache hits still need no token. The one existing cached skeleton was moved to `cache/skeletons/malecns_v1.0/`
+- [x] Data loaders take an optional `data_dir=` (default `DATA_DIR`). A missing file raises `FileNotFoundError` that names both `pixi run fetch-data` and `fetch_data()`
+  - `data.load_meta`, `load_prop`, `load_inprop`, `load_flow` and `data_file`, in `data/load.py`
+- [x] Make the neuPrint connection lazy so importing never needs a network or token; the getter raises a clear error naming `.env` and `NEUPRINT_APPLICATION_CREDENTIALS` instead of returning `False`, and the `plotter` fetches go through it
+  - `neuprint_client.connect(server=, dataset=)` (was `instance=`) accepts a neuPrint name or a registry tag and raises `NeuprintConnectionError`. `verbose=True` no longer prints the account email
+- [x] Rewrite every `utils.*` / `setup_data.*` import: internal (`malecns.py:30`, `plotter.py:35-36`), all six notebooks including mid-notebook imports (`plotting.ipynb`: `utils.plotter`, incl. private `_CNS_RANGE_X/Y` → make public; `receptive_fields.ipynb`: `setup_data.malecns`), and Pixi task paths (`download-eyemaps`)
+  - Notebook setup cells now import `config, data`; meta/prop reads use `data.load_meta` / `load_prop`; `receptive_fields` gets its eyemap from `eyemap.eyemap_dir()`. The notebooks are otherwise unchanged until Phase 3. After the change, `paper_figs_visual_pathways_layers` and `receptive_fields` ran top to bottom with nbconvert (with the local `CI_DEV_PATH` connectome_interpreter clone)
+- [x] Tests in `tests/`: every module imports with no `.env`; `import flyem_analysis_starter` works from a directory other than the root; no notebook `.py` pair contains `from utils` or `setup_data`; a temporary `.env` setting `FLYEM_DATA_DIR` changes `DATA_DIR`, and `FLYEM_CACHE_DIR` changes `CACHE_DIR`; no cache path contains `:`; the built wheel contains `params/rois/roi_meshes/brain_shell.npz` and `params/data_manifest.json`; the wheel installed (not editable) into a temporary environment outside the repo imports, reads a `params` file, has `PROJECT_ROOT is None`, and resolves `DATA_DIR` / `CACHE_DIR` to the `platformdirs` locations; `load_inprop()` equals `build_sparse_matrices`' inprop (CSC, float32) on a toy edge list; `add_coords2` on meta without `coords2` reproduces the cached column; each subpackage's `__all__` matches `tests/public_api.txt`, so removing or renaming a public name fails until that file and the changelog are updated on purpose. Mark tests that need data or a token with `@pytest.mark.data` / `@pytest.mark.neuprint`
+  - `tests/test_package.py`; all 27 tests pass, the Phase 0 ones included. The old-import check looks at import lines only, because `paper_figs_visual_pathways_layers` cites upstream visualpathways' `setup_data/` paths in prose. The installed-copy test uses `pip install --target` plus `PYTHONPATH` rather than a virtualenv. `params/data_manifest.json` is an empty placeholder until Phase 2
+- [x] Give every name in `__all__` a docstring and type hints; anything not meant to be stable is prefixed with `_` or left out of `__all__`
+  - Enforced by `test_public_functions_are_documented`. `plotting` exports only the plotters, the cached fetchers and the outline helpers; the rest of `plotter.py` stays reachable but unstable
 - [ ] Start `CHANGELOG.md`, covering only the stable API (see "What stays stable"); tag `v0.1.0` once Phases 1–3 are done
+  - Started (Unreleased 0.1.0, with migration notes from `utils` / `setup_data`). The tag waits for Phases 2–3
 
 ## Phase 2: Data download
 
@@ -193,7 +204,8 @@ The main blocker for newcomers. Depends only on Phase 1 and the existing `cache/
   - assets are never replaced in place: a rebuild gets a new tag (`-r2`) and new manifest entries
   - asset names match the local file names and use only letters, digits, `.`, `_` and `-` (GitHub rewrites other characters)
   - release notes record the dataset version, build date, source commit and the dataset citations
-- [ ] `inprop` is not hosted: `data.load_inprop()` derives it from `prop` (divided by column sums, as in `malecns.py:437-443`), checked with `np.allclose(colsum[colsum > 0], 1, atol=1e-5)`. Do not rebuild via s1 (re-queries neuPrint and overwrites meta/prop that were backfilled with `coords2`)
+- [x] `inprop` is not hosted: `data.load_inprop()` derives it from `prop` (divided by column sums, as in `malecns.py:437-443`), checked with `np.allclose(colsum[colsum > 0], 1, atol=1e-5)`. Do not rebuild via s1 (re-queries neuPrint and overwrites meta/prop that were backfilled with `coords2`)
+  - Written in Phase 1. It divides entry by entry like `build_sparse_matrices`, so the two matrices are identical, not just close (3.4 s for male CNS)
 - [ ] Add `flyem_analysis_starter.data.fetch_data(dataset="malecns_v1.0", data_dir=None)`, with `pixi run fetch-data` as a thin wrapper, so an installed copy can fetch without the repo. It downloads into `config.DATA_DIR` (in a clone, `cache/data/`) via `*.part`, verifies SHA-256, then `os.replace` (works on Windows; on `PermissionError` say "close notebooks using cache/data and rerun"); skips a file only when its existing hash matches; on mismatch re-downloads and says so
   - URLs have the form `https://github.com/<owner>/<repo>/releases/download/<tag>/<file>`. Each manifest entry holds a list of URLs tried in order, so a mirror (for example a Zenodo archive, for a DOI) can be added later without code changes
   - while the repo is private, anonymous downloads fail. CI fills `DATA_DIR` with `gh release download` (using the workflow's `GITHUB_TOKEN`) and then runs `fetch-data`, which only verifies the hashes
@@ -219,7 +231,8 @@ The three paper-figure notebooks move to `examples/paper_figs/`, unchanged excep
   - two-command quickstart (`pixi install`, `pixi run fetch-data`) for `02`–`04`; for `00`, `01`, `05` also "copy `.env.example` to `.env` and add your token"
   - a short "use it from your own project" section: install, `fetch_data()`, where the data and cache folders are and how to move them
   - how to get a neuPrint token, datasets covered, data provenance, where to ask for help
-- [ ] `.env.example` (done: neuPrint server, dataset, token placeholder, `SEGMENTATION_SOURCE`, `SHELL_SOURCE`, plotting backends, `CI_DEV_PATH`): add `FLYEM_DATA_DIR` and `FLYEM_CACHE_DIR` once `config.py` exists, and keep the source values in sync with the `config.py` defaults
+- [x] `.env.example` (done: neuPrint server, dataset, token placeholder, `SEGMENTATION_SOURCE`, `SHELL_SOURCE`, plotting backends, `CI_DEV_PATH`): add `FLYEM_DATA_DIR` and `FLYEM_CACHE_DIR` once `config.py` exists, and keep the source values in sync with the `config.py` defaults
+  - Added in Phase 1 (commented out), and the server, dataset and sources are marked optional
 - [ ] Glossary (README section or `docs/glossary.md`): `prop`, `inprop`, instance, type, hex1/hex2, `coords2`, effective connectivity, flow layers
 - [ ] `CLAUDE.md` / `AGENTS.md`: fill Key Concepts from the glossary and point to the package layout, so AI assistants give correct answers
 - [ ] `CONTRIBUTING.md`: what is stable and what is copy-and-edit (from "What stays stable"), where to keep your own work in a fork, what a pull request into `src/` needs (tests, a changelog line, a `tests/public_api.txt` update if the API changes), and that one maintainer reviews on a best-effort basis

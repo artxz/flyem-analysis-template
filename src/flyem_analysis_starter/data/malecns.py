@@ -1,14 +1,14 @@
 """Download and assemble malecns meta + sparse matrices from neuprint.
 
-Produces `malecns_{tag}_meta.csv`, `prop.npz`, `inprop.npz` in `cache/data/`.
-Consumed by `local/s1_malecns_data.py`. Uses tot_weight normalization
+Produces `malecns_{tag}_meta.csv`, `prop.npz`, `inprop.npz`. Consumed by
+`local/s1_malecns_data.py`; not part of the stable API (only `add_coords2`,
+re-exported from `flyem_analysis_starter.eyemap`, is). Uses tot_weight normalization
 (not upstream), and instance override from cell_type + side letter. The
 dataset-agnostic lateral-flow builders live in `local/flow.py`.
 """
 from pathlib import Path
 import warnings
 
-from dotenv import find_dotenv
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -27,7 +27,8 @@ from neuprint import (
 
 # One definition of the two-eye frame, shared with the eyemap that
 # `download_eyemaps` writes, so neuron coords and background lattice cannot drift.
-from setup_data.download_eyemaps import coords2_x
+from ..config import params_path
+from ..eyemap.download import coords2_x
 
 NT_SIGN = {
     "acetylcholine": 1,
@@ -42,7 +43,7 @@ NT_SIGN = {
 
 SIDE_WORD = {"left": "L", "right": "R", "noside": "0"}
 
-PARAMS_DIR = Path(find_dotenv()).parent / "params"
+PARAMS_DIR = params_path()
 
 # === 1. Connectivity ===
 
@@ -258,7 +259,7 @@ def add_coords2(meta: pd.DataFrame) -> pd.DataFrame:
     string `'nan'` -- so the usual index filters drop them.
 
     The matching background lattice is the `hex1b`/`hex2b` columns that
-    `setup_data.download_eyemaps` appends to each hemisphere eyemap from the same
+    `flyem_analysis_starter.eyemap.download` appends to each hemisphere eyemap from the same
     `coords2_x()`: `coords2` is exactly `'hex2b - hex1b, hex2b + hex1b'`.
 
     Args:

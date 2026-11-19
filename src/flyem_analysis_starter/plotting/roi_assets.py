@@ -1,4 +1,4 @@
-"""Read the pre-built ROI background assets written by `setup_data.make_roi_assets`.
+"""Read the pre-built ROI background assets written by `plotting.make_roi_assets`.
 
 Loaders only -- nothing here touches the network or recomputes geometry, so a
 plot that draws the brain boundary costs milliseconds instead of the ~630 s
@@ -6,22 +6,36 @@ plot that draws the brain boundary costs milliseconds instead of the ~630 s
 
 Regions are `brain` (central brain + both optic lobes) and `cb` (central brain
 only); views are `xy` (anterior), `xz` (dorsal) and `zy` (lateral). Everything
-is in the 8 nm-voxel frame the plotters use. Run
-`python src/setup_data/make_roi_assets.py` if a file is missing.
+is in the 8 nm-voxel frame the plotters use. The files ship inside the package
+(`params/rois`); maintainers regenerate them with
+`python -m flyem_analysis_starter.plotting.make_roi_assets`.
 """
 
 from __future__ import annotations
 
 import json
 from functools import lru_cache
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-from dotenv import find_dotenv
 
-PROJECT_ROOT = Path(find_dotenv()).parent
-ROI_DIR = PROJECT_ROOT / "params" / "rois"
+if TYPE_CHECKING:
+    import navis
+from ..config import params_path
+
+__all__ = [
+    "REGIONS",
+    "VIEWS",
+    "get_manifest",
+    "get_mesh",
+    "get_outline",
+    "get_outline_rings",
+    "get_volume",
+    "view_key",
+]
+
+ROI_DIR = params_path("rois")
 MESH_DIR = ROI_DIR / "roi_meshes"
 OUTLINE_DIR = ROI_DIR / "roi_outlines"
 MANIFEST_FN = ROI_DIR / "roi_assets_manifest.json"
@@ -82,7 +96,7 @@ def get_outline(region: str = "brain", view: str = "xy") -> tuple[pd.DataFrame, 
     if not files:
         raise FileNotFoundError(
             f"No outline for region={region!r} view={view!r} in {OUTLINE_DIR}. "
-            "Run `python src/setup_data/make_roi_assets.py`."
+            "Rebuild with `python -m flyem_analysis_starter.plotting.make_roi_assets`."
         )
     return tuple(pd.read_csv(fn) for fn in files)
 
@@ -102,13 +116,16 @@ def get_mesh(region: str = "brain") -> tuple[np.ndarray, np.ndarray]:
     fn = MESH_DIR / f"{region}_shell.npz"
     if not fn.is_file():
         raise FileNotFoundError(
-            f"{fn} missing. Run `python src/setup_data/make_roi_assets.py`."
+            f"{fn} missing. Rebuild with "
+            "`python -m flyem_analysis_starter.plotting.make_roi_assets`."
         )
     with np.load(fn) as npz:
         return npz["vertices"].astype(float), npz["faces"].astype(int)
 
 
-def get_volume(region: str = "brain", color: tuple = (1, 1, 1, 0.2)):
+def get_volume(
+    region: str = "brain", color: tuple[float, ...] = (1, 1, 1, 0.2)
+) -> navis.Volume:
     """Load the decimated shell mesh as a coloured `navis.Volume`."""
     import navis
 
