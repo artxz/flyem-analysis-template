@@ -18,17 +18,15 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # Prefer a local connectome_interpreter checkout (CI_DEV_PATH in .env) over the
 # pixi-installed wheel, so edits in the fork take effect via %autoreload 2.
@@ -42,8 +40,8 @@ else:
     print("connectome_interpreter: using the pixi-installed package")
 
 # %%
-from utils import olc_client
-c = olc_client.connect(verbose=True)
+from flyem_analysis_starter.neuprint_client import connect
+c = connect(verbose=True)
 
 # %%
 import pandas as pd
@@ -64,9 +62,9 @@ print(f"connectome_interpreter loaded from: {ci.__file__}")
 dataset = 'malecns_v1.0'
 # dataset = 'fafb_all_neurons'
 
-data_dir = Path(PROJECT_ROOT, 'cache', 'data')
+data_dir = config.DATA_DIR
 
-results_dir = Path(PROJECT_ROOT, 'results', dataset)
+results_dir = config.PROJECT_ROOT / 'results' / dataset
 results_dir.mkdir(parents=True, exist_ok=True)
 
 # %% [markdown] id="w7A8Y5Xnim_B"
@@ -76,7 +74,7 @@ results_dir.mkdir(parents=True, exist_ok=True)
 # ## whole cns, front view
 
 # %%
-from utils.plotter import plot_3d_cns, save_figure
+from flyem_analysis_starter.plotting import plot_3d_cns, save_figure
 
 # %%
 fig = plot_3d_cns(
@@ -96,7 +94,7 @@ save_figure(fig, Path(results_dir, "VS1.png"))
 # fig.write_image(Path(results_dir, "cns_outline.pdf"))
 
 # %%
-from utils.plotter import get_outline_cns
+from flyem_analysis_starter.plotting import get_outline_cns
 
 pts = np.asarray(get_outline_cns())        # (3052, 3), all at z=30001 — a planar ring
 
@@ -121,7 +119,7 @@ fig.write_image(out)      # .pdf / .eps work the same way
 fig.show()
 
 # %%
-from utils.plotter import get_outline_cns, _CNS_RANGE_X, _CNS_RANGE_Y
+from flyem_analysis_starter.plotting import get_outline_cns, CNS_RANGE_X, CNS_RANGE_Y
 
 pts = np.asarray(get_outline_cns())          # (3052, 3), planar ring at z=30001
 
@@ -130,12 +128,12 @@ up = np.array([-0.05, -1.0, 0.0])
 up /= np.linalg.norm(up)                     # screen "up" in world coords
 right = np.array([-up[1], up[0], 0.0])       # = cross(view_dir=+z, up)
 
-center = np.array([np.mean(_CNS_RANGE_X), np.mean(_CNS_RANGE_Y), 0.0])
+center = np.array([np.mean(CNS_RANGE_X), np.mean(CNS_RANGE_Y), 0.0])
 rel = pts - center
 xs, ys = rel @ right, rel @ up               # project onto the screen basis
 
 # frame it like the 3-D scene: the CNS box rotated by the same amount
-corners = np.array([[x, y, 0.0] for x in _CNS_RANGE_X for y in _CNS_RANGE_Y]) - center
+corners = np.array([[x, y, 0.0] for x in CNS_RANGE_X for y in CNS_RANGE_Y]) - center
 half_x, half_y = np.abs(corners @ right).max(), np.abs(corners @ up).max()
 
 fig = go.Figure(go.Scatter(

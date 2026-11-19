@@ -44,25 +44,23 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # %%
-from utils import olc_client
+from flyem_analysis_starter.neuprint_client import connect
 # The paper used `optic-lobe:v1.1` on https://neuprint.janelia.org. The default `.env`
 # dataset (male-cns:v1.0) shares body IDs, ROI meshes and layer meshes with it, so either
 # works (the same token is valid for both):
-# c = olc_client.connect(instance='https://neuprint.janelia.org', dataset='optic-lobe:v1.1')
-c = olc_client.connect(verbose=True)
+# c = connect(server='https://neuprint.janelia.org', dataset='optic-lobe:v1.1')
+c = connect(verbose=True)
 
 # %%
 import numpy as np

@@ -40,17 +40,15 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # %%
 import numpy as np
@@ -61,7 +59,7 @@ import connectome_interpreter as ci
 
 # %%
 dataset = 'malecns_v1.0'
-data_folder = PROJECT_ROOT / 'cache' / 'data'
+data_folder = config.DATA_DIR
 side = 'r'                 # flow is seeded from the right eye and analysed for right-OL types
 n_steps, hit_thre = 20, 0.1
 
@@ -76,7 +74,7 @@ n_steps, hit_thre = 20, 0.1
 # -1 GABA/glutamate, 0 for everything else.
 
 # %%
-meta = pd.read_csv(data_folder / f'{dataset}_meta.csv', index_col=0).reset_index()
+meta = data.load_meta(dataset)
 
 SEED_TYPES = ['L1', 'L2', 'L3', 'R7', 'R8', 'R7d', 'R8d', 'HBeyelet']
 GROUP_OF_SUPERCLASS = {'ol_intrinsic': 'VIN', 'visual_projection': 'VPN', 'visual_centrifugal': 'VCN'}
@@ -98,7 +96,7 @@ meta.main_groups.value_counts()
 # %%
 flow_file = data_folder / f'{dataset}_{side}_flow_{n_steps}step_{hit_thre}thre_hit.csv'
 if not flow_file.exists():
-    prop = sp.load_npz(data_folder / f'{dataset}_prop.npz').tocsc()        # pre in rows, post in columns
+    prop = data.load_prop(dataset)                                        # pre in rows, post in columns
     total_post = np.asarray(prop.sum(axis=0)).ravel().astype(float)
     inprop = prop.multiply(np.divide(1.0, total_post, out=np.zeros_like(total_post),
                                      where=total_post != 0)).tocsc().astype(np.float32)

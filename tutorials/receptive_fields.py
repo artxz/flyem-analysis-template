@@ -21,17 +21,15 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # Prefer a local connectome_interpreter checkout (CI_DEV_PATH in .env) over the
 # pixi-installed wheel, so edits in the fork take effect via %autoreload 2.
@@ -45,8 +43,8 @@ else:
     print("connectome_interpreter: using the pixi-installed package")
 
 # %%
-from utils import olc_client
-c = olc_client.connect(verbose=True)
+from flyem_analysis_starter.neuprint_client import connect
+c = connect(verbose=True)
 
 # %%
 import pandas as pd
@@ -66,26 +64,21 @@ import connectome_interpreter as ci
 print(f"connectome_interpreter loaded from: {ci.__file__}")
 
 # %%
-# import sys
-# import os
-# from pathlib import Path
-# PROJECT_ROOT = Path(os.path.dirname(os.getcwd()))
-# sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-
 # from connectome_interpreter import *
 
 # %%
 dataset = 'malecns_v1.0'
 # dataset = 'fafb_all_neurons'
 
-data_folder = Path(PROJECT_ROOT, 'cache', 'data')
+data_folder = config.DATA_DIR
 
-# Eyemap dataset folder, holding right.xlsx and left.xlsx as written by
-# `pixi run download-eyemaps`. The plot functions take the folder and pick the
-# file(s) themselves via `which_eye`.
-eyemap_dir = Path(PROJECT_ROOT, 'params', 'eyemaps', 'eyemap_mcns_f20240701')
+# Eyemap dataset folder, holding right.xlsx and left.xlsx. The male CNS eyemap
+# ships with the package; others come from `pixi run download-eyemaps`. The plot
+# functions take the folder and pick the file(s) themselves via `which_eye`.
+from flyem_analysis_starter.eyemap import eyemap_dir as find_eyemap_dir
+eyemap_dir = find_eyemap_dir('eyemap_mcns_f20240701')
 
-results_folder = PROJECT_ROOT / 'results' / dataset
+results_folder = config.PROJECT_ROOT / 'results' / dataset
 results_folder.mkdir(parents=True, exist_ok=True)
 
 # %% [markdown]
@@ -106,7 +99,7 @@ results_folder.mkdir(parents=True, exist_ok=True)
 # %%
 # get meta
 # the idx column records the index of the neuron in inprop
-meta = pd.read_csv(data_folder / f'{dataset}_meta.csv', index_col = 0).reset_index()
+meta = data.load_meta(dataset)
 meta.shape
 
 # %%
@@ -139,7 +132,7 @@ coord_types
 # %%
 # connectivity is a sparse matrix
 # pre in rows, post in columns
-conn_mat = sp.sparse.load_npz(data_folder / f'{dataset}_prop.npz') #full integer weights
+conn_mat = data.load_prop(dataset) #full integer weights
 
 # normalize to get input-normalized weights
 total_post = conn_mat.sum(axis=0).A1.astype(float)
@@ -340,7 +333,7 @@ rfidx
 # %% [markdown]
 # If no `coords2` column in `meta`, run this to attach it
 # ```
-# from setup_data.malecns import add_coords2
+# from flyem_analysis_starter.eyemap import add_coords2
 # meta = add_coords2(meta)
 # ```
 
