@@ -1,0 +1,68 @@
+{
+  "generated": "2026-09-21",
+  "source": "gs://flyem-optic-lobe/rois/fullbrain-major-shells/",
+  "units": "8 nm voxels",
+  "script": "src/setup_data/make_roi_assets.py",
+  "regions": {
+    "cb": {
+      "segments": [
+        1
+      ],
+      "n_vertices_full": 872533,
+      "n_faces_full": 1745076,
+      "mesh": {
+        "file": "cb_shell.npz",
+        "grid_voxels": 300.0,
+        "n_vertices": 88307,
+        "n_faces": 181183
+      },
+      "outlines": {
+        "grid_voxels": 400.0,
+        "simplify_voxels": 40.0,
+        "files": {
+          "xy": [
+            "outline_cb_xy_0.csv",
+            "outline_cb_xy_1.csv"
+          ],
+          "xz": [
+            "outline_cb_xz_0.csv"
+          ],
+          "zy": [
+            "outline_cb_zy_0.csv"
+          ]
+        }
+      }
+    },
+    "brain": {
+      "segments": [
+        1,
+        2,
+        3
+      ],
+      "n_vertices_full": 1531203,
+      "n_faces_full": 3062412,
+      "mesh": {
+        "file": "brain_shell.npz",
+        "grid_voxels": 300.0,
+        "n_vertices": 156001,
+        "n_faces": 320524
+      },
+      "outlines": {
+        "grid_voxels": 400.0,
+        "simplify_voxels": 40.0,
+        "files": {
+          "xy": [
+            "outline_brain_xy_0.csv",
+            "outline_brain_xy_1.csv"
+          ],
+          "xz": [
+            "outline_brain_xz_0.csv"
+          ],
+          "zy": [
+            "outline_brain_zy_0.csv"
+          ]
+        }
+      }
+    }
+  }
+}
