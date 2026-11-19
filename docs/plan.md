@@ -64,7 +64,7 @@ Today, no notebook runs on a fresh clone. The tooling is good, but it depends on
 
 | Source | What came from it | Credited today? |
 | --- | --- | --- |
-| reiserlab/visualpathways | `params/*_col_center_pins.pickle` (commit `fdd6fb4`); ROI outline layout and `cb` framing in `plotter.py` / `roi_assets.py`; colour handling in `pathways.ipynb`; most likely `ol_rf.py` and the 8 modules it is missing | Pins: commit message only. Code: comments mention it, no header |
+| reiserlab/visualpathways | `params/*_col_center_pins.pickle` (commit `0cae786`); ROI outline layout and `cb` framing in `plotter.py` / `roi_assets.py`; colour handling in `pathways.ipynb`; most likely `ol_rf.py` and the 8 modules it is missing | Pins: commit message only. Code: comments mention it, no header |
 | reiserlab/male-drosophila-visual-system-connectome-code | Most likely `plotter.py` and `ng_view.py` (neuroglancer views, `FIXME(@floesche)` notes); optic-lobe gallery reproduces its figures | No |
 | artxz.github.io/eyemap-archive (Reiser Lab) | Eye maps fetched by `download_eyemaps.py` | Yes, file header |
 | flyconnectome/2025malecns | `mcns_lvl_6_hsbm_communities.feather`, downloaded by the male CNS gallery | Yes, notebook |
@@ -120,9 +120,10 @@ Commit what exists before restructuring anything, so the reorganisation is revie
 - [x] Strip outputs from all six notebooks (the four untracked plus tracked `pathways.ipynb`, `receptive_fields.ipynb`) and add Jupytext `.py:percent` pairs. Both files are committed and kept in sync by the hook
 - [x] Commit `plotter.py`, `roi_assets.py`, `make_roi_assets.py`, `ng_view.py`, `params/rois/` and the `pixi.toml` / `pixi.lock` changes on `notebook-plotting`
 - [x] Check no secrets, tokens or PII are staged (`.env`; notebook outputs — `connect(verbose=True)` prints the user's email, already in tracked `pathways.ipynb` history)
-- [ ] Rewrite git history to remove the email from the `pathways.ipynb` outputs (`git filter-repo` stripping outputs from every past version), then force-push and tell anyone with a clone to re-clone
-  - The email is in 3 pushed commits (`fafd5d2`, `ea662bd`, `fdd6fb4`) of a public repo. After the force-push GitHub can still serve the old commits by SHA until GitHub Support purges them
-- [ ] Merge `notebook-plotting` into `main`, or open a pull request, so later phases branch from one base
+- [x] Rewrite git history to remove the email from the `pathways.ipynb` outputs (`git filter-repo` stripping outputs from every past version), then force-push and tell anyone with a clone to re-clone
+  - Done 2026-11-19 with `git filter-branch --index-filter` running nbstripout on every `.ipynb` blob (filter-repo was not installed); only notebook blobs changed, so every SHA from `b15f19d` on is new. The email was in old commits `fafd5d2`, `ea662bd`, `fdd6fb4`; GitHub can still serve those by SHA (also via the 2 forks, which share its object network) until GitHub Support purges them. Backup of the old history: `local/pre-history-rewrite.bundle`
+- [x] Merge `notebook-plotting` into `main`, or open a pull request, so later phases branch from one base
+  - Pull request opened from `notebook-plotting`; merge it before starting Phase 1
 
 ## Phase 1: Installable package and config
 
