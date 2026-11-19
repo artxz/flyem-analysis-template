@@ -1,0 +1,25 @@
+# Install once per clone: pixi run -e dev pre-commit install
+# Run on everything:      pixi run -e dev pre-commit run --all-files
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        # params/rois/roi_meshes/brain_shell.npz is 3.2 MB
+        args: ["--maxkb=4000"]
+
+  # Strip outputs and execution counts before notebooks are committed.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+
+  # Keep each notebook and its .py:percent pair in sync (pairing is set in
+  # pyproject.toml). Limited to notebook folders so plain modules in src/ are
+  # never paired with a new .ipynb. Keep rev in step with jupytext in pixi.lock.
+  - repo: https://github.com/mwouts/jupytext
+    rev: v1.19.5
+    hooks:
+      - id: jupytext
+        args: ["--sync"]
+        files: ^(tutorials|examples)/

@@ -11,3 +11,11 @@ where = ["src"]
 
 [tool.jupytext]
 formats = "ipynb,py:percent"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "data: needs the prebuilt files in cache/data (run `pixi run fetch-data`)",
+    "neuprint: needs a neuPrint token in .env and network access",
+]

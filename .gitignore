@@ -171,3 +171,7 @@ local/
 # -----------------------------------------------
 # Project-specific ignores (add your own below)
 # -----------------------------------------------
+
+# Notebook and analysis outputs
+results/
+tutorials/results/
