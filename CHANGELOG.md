@@ -21,6 +21,9 @@ release that raises a `DeprecationWarning`, and the entry below says what to cha
 - `data`: `load_meta()`, `load_prop()`, `load_inprop()` (derived from `prop`),
   `load_flow()`, `data_file()`. All take `data_dir=`; a missing file raises
   `FileNotFoundError` saying how to download it.
+- `data.fetch_data()` and `pixi run fetch-data`: download a dataset's prebuilt
+  files into `DATA_DIR` and verify their SHA-256 hashes against the package's
+  `params/data_manifest.json`. `data.hosted_datasets()` lists what is available.
 - `eyemap`: `eyemap_dir()`, `download_eyemaps()`, `add_coords2()`, `coords2_x()`,
   `hex_b_from_hex()`, `add_binocular_hex()`, `DEFAULT_EYEMAP`.
 - `plotting`: `plot_2d_cns()`, `plot_3d_cns()`, `show_figure()`, `save_figure()`,

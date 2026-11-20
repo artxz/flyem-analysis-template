@@ -9,6 +9,19 @@ from __future__ import annotations
 
 from .._lazy import lazy_getattr
 
-__all__ = ["data_file", "load_meta", "load_prop", "load_inprop", "load_flow"]
+__all__ = [
+    "data_file",
+    "fetch_data",
+    "hosted_datasets",
+    "load_flow",
+    "load_inprop",
+    "load_meta",
+    "load_prop",
+]
 
-__getattr__, __dir__ = lazy_getattr(__name__, dict.fromkeys(__all__, "load"), __all__)
+_TARGETS = dict.fromkeys(__all__, "load") | {
+    "fetch_data": "fetch",
+    "hosted_datasets": "fetch",
+}
+
+__getattr__, __dir__ = lazy_getattr(__name__, _TARGETS, __all__)

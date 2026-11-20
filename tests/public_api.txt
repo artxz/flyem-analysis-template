@@ -27,6 +27,8 @@ flyem_analysis_starter.neuprint_client: NeuprintConnectionError
 flyem_analysis_starter.neuprint_client: connect
 flyem_analysis_starter.neuprint_client: get_client
 flyem_analysis_starter.data: data_file
+flyem_analysis_starter.data: fetch_data
+flyem_analysis_starter.data: hosted_datasets
 flyem_analysis_starter.data: load_flow
 flyem_analysis_starter.data: load_inprop
 flyem_analysis_starter.data: load_meta
