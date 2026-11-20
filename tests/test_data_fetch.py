@@ -21,7 +21,7 @@ from flyem_analysis_starter.data import fetch, publish
 
 _REQUIRED_KEYS = {
     "name", "dataset", "dataset_version", "release", "urls", "sha256", "size",
-    "build_date", "source",
+    "build_date", "source", "license",
 }  # fmt: skip
 
 
@@ -60,6 +60,7 @@ def _entry(name: str, content: bytes, urls: list[str]) -> dict[str, Any]:
         "size": len(content),
         "build_date": "2026-01-01",
         "source": "test",
+        "license": "CC BY 4.0",
     }
 
 
@@ -198,6 +199,11 @@ def test_publish_refuses_reused_tag_and_bad_names(tmp_path):
         publish._dataset_files("toy_v1", tmp_path)
 
 
+def test_every_dataset_has_licence_and_citation():
+    assert set(publish._LICENSES) == set(config.DATASETS)
+    assert set(publish._CITATIONS) == set(config.DATASETS)
+
+
 def test_packaged_manifest_is_well_formed():
     manifest = fetch._load_manifest()
     names = [e["name"] for e in manifest["files"]]
@@ -209,6 +215,7 @@ def test_packaged_manifest_is_well_formed():
         assert re.fullmatch(r"[A-Za-z0-9._-]+", e["name"])
         assert re.fullmatch(rf"data-{re.escape(e['dataset'])}-r\d+", e["release"])
         assert re.fullmatch(r"[0-9a-f]{64}", e["sha256"])
+        assert e["license"] == publish._LICENSES[e["dataset"]][0]
         assert e["urls"][0].endswith(f"/releases/download/{e['release']}/{e['name']}")
     for dataset in fetch.hosted_datasets():
         hosted = {n for n in names if n.startswith(f"{dataset}_")}

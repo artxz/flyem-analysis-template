@@ -36,16 +36,31 @@ _ASSET_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
 # Cited in the release notes. Keep in sync with the README's data section.
 _CITATIONS = {
     "malecns_v1.0": [
-        "Berg S, Beckett IR, Costa M, et al. (2025). Sexual dimorphism in the "
-        "complete connectome of the Drosophila male central nervous system. "
-        "bioRxiv.",
+        (
+            "Berg S, Beckett IR, Costa M, et al. (2026). Sexual dimorphism in the "
+            "complete Drosophila male central nervous system connectome. Cell "
+            "189(18), 5504-5526. https://doi.org/10.1016/j.cell.2026.08.015"
+        ),
     ],
     "flywire-fafb-v783b": [
-        "Dorkenwald S, Matsliah A, Sterling AR, et al. (2024). Neuronal wiring "
-        "diagram of an adult brain. Nature 634, 124-138.",
-        "Schlegel P, Yin Y, Bates AS, et al. (2024). Whole-brain annotation and "
-        "multi-connectome cell typing of Drosophila. Nature 634, 139-152.",
+        (
+            "Dorkenwald S, Matsliah A, Sterling AR, et al. (2024). Neuronal "
+            "wiring diagram of an adult brain. Nature 634, 124-138."
+        ),
+        (
+            "Schlegel P, Yin Y, Bates AS, et al. (2024). Whole-brain annotation "
+            "and multi-connectome cell typing of Drosophila. Nature 634, 139-152."
+        ),
     ],
+}
+
+# Licence of the source dataset, which the derived files inherit, and where it
+# is stated. Checked 2026-11-20. FlyWire's Zenodo connectivity record says
+# CC BY 4.0, but FlyWire's own public-release terms say CC BY-NC 4.0; the
+# stricter one is used.
+_LICENSES = {
+    "malecns_v1.0": ("CC BY 4.0", "https://male-cns.janelia.org/download/"),
+    "flywire-fafb-v783b": ("CC BY-NC 4.0", "https://flywire.ai/guidelines"),
 }
 
 _DEFAULT_SOURCE = (
@@ -109,6 +124,7 @@ def _build_entries(
                 "size": path.stat().st_size,
                 "build_date": mtime.date().isoformat(),
                 "source": source,
+                "license": _LICENSES[dataset][0],
             }
         )
     return entries
@@ -149,8 +165,21 @@ def _release_notes(dataset: str, entries: Sequence[dict[str, Any]], commit: str)
             f"| `{e['name']}` | {e['size'] / 2**20:.1f} | {e['build_date']} "
             f"| `{e['sha256']}` |"
         )
-    lines += ["", "Please cite the dataset when using these files:", ""]
-    lines += [f"- {c}" for c in _CITATIONS.get(dataset, ["(add citation)"])]
+    license_name, license_url = _LICENSES[dataset]
+    lines += [
+        "",
+        "## Licence",
+        "",
+        f"These files are derived from the `{config.DATASETS[dataset].name}` "
+        f"dataset (per-neuron annotations, synapse counts summed per neuron "
+        f"pair, and results computed from them) and are shared under its licence, "
+        f"{license_name} "
+        f"(stated at {license_url}).",
+    ]
+    if "NC" in license_name:
+        lines.append("Non-commercial use only.")
+    lines += ["", "## Citation", "", "Please cite the dataset when using these files:"]
+    lines += [""] + [f"- {c}" for c in _CITATIONS[dataset]]
     return "\n".join(lines) + "\n"
 
 
