@@ -204,6 +204,7 @@ The main blocker for newcomers. Depends only on Phase 1 and the existing `cache/
   - assets are never replaced in place: a rebuild gets a new tag (`-r2`) and new manifest entries
   - asset names match the local file names and use only letters, digits, `.`, `_` and `-` (GitHub rewrites other characters)
   - release notes record the dataset version, build date, source commit and the dataset citations
+  - Not yet uploaded: `publish-data` is written and its dry run passes for both datasets; the upload is waiting on the maintainer (`pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1`, then the same for `flywire-fafb-v783b`, then commit the manifest). The repository is already public, so these releases are public
 - [x] `inprop` is not hosted: `data.load_inprop()` derives it from `prop` (divided by column sums, as in `malecns.py:437-443`), checked with `np.allclose(colsum[colsum > 0], 1, atol=1e-5)`. Do not rebuild via s1 (re-queries neuPrint and overwrites meta/prop that were backfilled with `coords2`)
   - Written in Phase 1. It divides entry by entry like `build_sparse_matrices`, so the two matrices are identical, not just close (3.4 s for male CNS)
 - [x] Add `flyem_analysis_starter.data.fetch_data(dataset="malecns_v1.0", data_dir=None)`, with `pixi run fetch-data` as a thin wrapper, so an installed copy can fetch without the repo. It downloads into `config.DATA_DIR` (in a clone, `cache/data/`) via `*.part`, verifies SHA-256, then `os.replace` (works on Windows; on `PermissionError` say "close notebooks using cache/data and rerun"); skips a file only when its existing hash matches; on mismatch re-downloads and says so
@@ -243,6 +244,7 @@ The three paper-figure notebooks move to `examples/paper_figs/`, unchanged excep
 - [ ] Before making the repo public:
   - ask GitHub Support to purge the old commits that held the email (`fafd5d2`, `ea662bd`, `fdd6fb4`)
   - confirm the male CNS and FlyWire terms allow redistributing the derived matrices, and cite both datasets in the README and the data record
+  - Checked 2026-11-20: male CNS v1.0 is CC BY 4.0 (male-cns.janelia.org/download); FlyWire public release v783 is CC BY-NC 4.0 (flywire.ai/guidelines; its Zenodo connectivity record says CC BY 4.0, and the stricter licence is used). Both allow redistribution with attribution, FlyWire for non-commercial use only. The licence and citations go into each release's notes and manifest entries; the README still needs them
   - check that no cluster paths or internal hostnames appear in docs or notebooks
 - [ ] Right after making it public: run `fetch_data()` on a machine with no GitHub login to confirm anonymous downloads work, then drop the CI `gh release download` step
 
