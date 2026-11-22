@@ -24,10 +24,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
-import numpy as np
 import pandas as pd
 
-from .malecns import NT_SIGN, SIDE_WORD, fetch_neuron_table
+from .malecns import NT_SIGN, SIDE_WORD, fetch_neuron_table, fetch_typed_edges
 
 if TYPE_CHECKING:
     from neuprint import Client
@@ -41,8 +40,9 @@ META_COLUMNS = [
 def fetch_connectivity(client: Client) -> pd.DataFrame:
     """Download all typed-to-typed neuron adjacencies as a flat edge list.
 
-    Lamina rows (`LA_L`, `LA_R`) are dropped, as in the male CNS build, and
-    the remaining per-ROI weights are summed per neuron pair.
+    Lamina synapses (`LA_L`, `LA_R`) are dropped, as in the male CNS build, and
+    the remaining per-ROI weights are summed per neuron pair (see
+    `malecns.fetch_typed_edges`).
 
     Args:
         client: neuPrint client connected to the FlyWire dataset.
@@ -50,17 +50,7 @@ def fetch_connectivity(client: Client) -> pd.DataFrame:
     Returns:
         Columns `bodyId_pre`, `bodyId_post`, `weight` (int32).
     """
-    from neuprint import NeuronCriteria as NC
-    from neuprint import NotNull, fetch_adjacencies
-
-    _, adj = fetch_adjacencies(NC(type=NotNull), NC(type=NotNull), client=client)
-    adj = adj.loc[
-        ~adj["roi"].isin(["LA_L", "LA_R"]), ["bodyId_pre", "bodyId_post", "weight"]
-    ]
-    adj["weight"] = adj["weight"].astype(np.int32)
-    pairs = adj.groupby(["bodyId_pre", "bodyId_post"], as_index=False, sort=False)
-    edges: pd.DataFrame = pairs["weight"].sum()
-    return edges
+    return fetch_typed_edges(client, ["LA_L", "LA_R"])
 
 
 def fetch_neuron_metadata(body_ids: Sequence[int], client: Client) -> pd.DataFrame:

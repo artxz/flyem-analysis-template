@@ -155,6 +155,35 @@ def test_fetch_neuron_table_batches_and_keeps_order():
     assert out.loc[out.bodyId == 99, "cell_type"].isna().all()
 
 
+def test_fetch_typed_edges_chunks_drop_rois_and_sums(monkeypatch):
+    # Per-ROI rows as fetch_adjacencies returns them, for presynaptic 1, 2, 3.
+    rows = pd.DataFrame(
+        [
+            (1, 2, "ME(R)", 3), (1, 2, "LA(R)", 4), (1, 2, "NotPrimary", 1),
+            (2, 3, "LA(L)", 5),  # lamina only: the pair disappears
+            (3, 1, "LO(R)", 2), (3, 1, "ME(R)", 6),
+        ],
+        columns=["bodyId_pre", "bodyId_post", "roi", "weight"],
+    )  # fmt: skip
+    calls = []
+
+    def fake_adjacencies(sources, targets, client):
+        ids = list(sources.bodyId)
+        calls.append(ids)
+        return None, rows[rows.bodyId_pre.isin(ids)].reset_index(drop=True)
+
+    class _Client:
+        def fetch_custom(self, query):
+            return pd.DataFrame({"bodyId": [3, 1, 2]})
+
+    monkeypatch.setattr(malecns, "fetch_adjacencies", fake_adjacencies)
+    out = malecns.fetch_typed_edges(_Client(), ["LA(R)", "LA(L)"], chunk_size=2)
+    assert calls == [[1, 2], [3]]
+    got = {(r.bodyId_pre, r.bodyId_post): r.weight for r in out.itertuples()}
+    assert got == {(1, 2): 4, (3, 1): 8}
+    assert out["weight"].dtype == np.int32
+
+
 @pytest.fixture
 def fake_neuprint(monkeypatch):
     """Make the FlyWire matrices step read the toy dataset instead of neuPrint."""

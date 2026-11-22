@@ -9,6 +9,7 @@ dataset-agnostic flow builders live in `data.flow`, the FlyWire counterparts in
 
 Adapted from reiserlab/visualpathways, `src/setup_data/malecns.py`.
 """
+from collections.abc import Sequence
 from pathlib import Path
 import warnings
 
@@ -51,28 +52,64 @@ PARAMS_DIR = params_path()
 # === 1. Connectivity ===
 
 
-def fetch_connectivity(client: Client | None = None) -> pd.DataFrame:
-    """Download all Neuron→Neuron adjacencies (type IS NOT NULL on both ends),
-    drop every LA(R)/LA(L) row, and collapse per bodyId pair into a flat
-    edge list."""
-    neu, adj = fetch_adjacencies(NC(type=NotNull), NC(type=NotNull), client=client)
-    in_lamina = adj["roi"].isin(["LA(R)", "LA(L)"])
+def fetch_typed_edges(
+    client: Client | None,
+    drop_rois: Sequence[str],
+    chunk_size: int = 20_000,
+) -> pd.DataFrame:
+    """Download every typed-to-typed neuron edge, summed over ROIs except `drop_rois`.
 
-    # Optional, keep the L1/L2/L3 ↔ L4 reciprocal lamina-cartridge edges 
-    # It will change tot_weight normalization and every downstream
-    # cache, so it would require a full s1→s3 rebuild (and the FlyWire analog
-    # `s1_flywirefafb_data.py` mirrors the drop-all behavior — update both).
-    type_by_bid = dict(zip(neu["bodyId"], neu["type"]))
-    pre_t = adj["bodyId_pre"].map(type_by_bid)
-    post_t = adj["bodyId_post"].map(type_by_bid)
-    keep_lamina = in_lamina & (
-        (pre_t.isin(["L1", "L2", "L3"]) & (post_t == "L4"))
-        | ((pre_t == "L4") & post_t.isin(["L1", "L2", "L3"]))
-    )
-    
-    adj = adj.loc[(~in_lamina), ["bodyId_pre", "bodyId_post", "weight"]]
-    adj["weight"] = adj["weight"].astype(np.int32)
-    return adj.groupby(["bodyId_pre", "bodyId_post"], as_index=False, sort=False)["weight"].sum()
+    Calls `fetch_adjacencies` for `chunk_size` presynaptic neurons at a time and
+    reduces each chunk to one row per neuron pair before fetching the next, so
+    memory stays bounded (one call for the whole male CNS needs more than
+    16 GB). Per pair, neuprint's per-ROI rows (including its `NotPrimary`
+    remainder) sum to the edge's total weight, so the result equals one big
+    call followed by the same drop and sum. Pairs whose only synapses lie in
+    `drop_rois` are left out.
+
+    Args:
+        client: neuPrint client (None uses the default client).
+        drop_rois: ROIs whose synapses are not counted, e.g. the laminae.
+        chunk_size: Presynaptic neurons per `fetch_adjacencies` call.
+
+    Returns:
+        Columns `bodyId_pre`, `bodyId_post`, `weight` (int32).
+    """
+    if client is None:
+        from neuprint import default_client
+
+        client = default_client()
+    typed = client.fetch_custom(
+        "MATCH (n:Neuron) WHERE n.type IS NOT NULL RETURN n.bodyId AS bodyId"
+    )["bodyId"].sort_values().to_numpy()
+    parts = []
+    for start in range(0, len(typed), chunk_size):
+        chunk = typed[start : start + chunk_size].tolist()
+        end = start + len(chunk)
+        print(f"  presynaptic neurons {start:,}-{end:,} of {len(typed):,}")
+        _, adj = fetch_adjacencies(
+            NC(bodyId=chunk), NC(type=NotNull), client=client
+        )
+        adj = adj.loc[
+            ~adj["roi"].isin(list(drop_rois)), ["bodyId_pre", "bodyId_post", "weight"]
+        ]
+        adj["weight"] = adj["weight"].astype(np.int32)
+        pairs = adj.groupby(["bodyId_pre", "bodyId_post"], as_index=False, sort=False)
+        parts.append(pairs["weight"].sum())
+    edges = pd.concat(parts, ignore_index=True)
+    edges["weight"] = edges["weight"].astype(np.int32)
+    return edges
+
+
+def fetch_connectivity(client: Client | None = None) -> pd.DataFrame:
+    """Download all typed-to-typed adjacencies, dropping the lamina ROIs.
+
+    Every `LA(R)`/`LA(L)` synapse is dropped, including the L1/L2/L3 to L4
+    lamina-cartridge edges. Keeping those would change the `tot_weight`
+    normalization and every downstream file, and the FlyWire build
+    (`data.flywire`) drops its laminae the same way, so change both or neither.
+    """
+    return fetch_typed_edges(client, ["LA(R)", "LA(L)"])
 
 
 def _remint_r78_bodyids(df: pd.DataFrame, side: str) -> pd.DataFrame:
@@ -440,11 +477,12 @@ def finalize_meta(meta: pd.DataFrame, sorted_nodes: list[int]) -> pd.DataFrame:
             .str.replace(r"_indeterminate", "", regex=True)
         )
 
-    # after `side` exists: coords2 is a function of (coords, side)
-    out = add_coords2(out)
-
     nodes_to_idx = {n: i for i, n in enumerate(sorted_nodes)}
     out["idx"] = out["bodyId"].map(nodes_to_idx)
+
+    # after `side` exists: coords2 is a function of (coords, side). Added last
+    # so it is the final column, as in the published meta files.
+    out = add_coords2(out)
     out = out.sort_values("idx").reset_index(drop=True)
     return out
 
