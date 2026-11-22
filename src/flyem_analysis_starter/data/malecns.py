@@ -1,10 +1,13 @@
 """Download and assemble malecns meta + sparse matrices from neuprint.
 
-Produces `malecns_{tag}_meta.csv`, `prop.npz`, `inprop.npz`. Consumed by
-`local/s1_malecns_data.py`; not part of the stable API (only `add_coords2`,
-re-exported from `flyem_analysis_starter.eyemap`, is). Uses tot_weight normalization
-(not upstream), and instance override from cell_type + side letter. The
-dataset-agnostic lateral-flow builders live in `local/flow.py`.
+Produces `malecns_v1.0_meta.csv` and `_prop.npz`. Called by `data.build`; not
+part of the stable API (only `add_coords2`, re-exported from
+`flyem_analysis_starter.eyemap`, is). Uses tot_weight normalization (not
+upstream), and instance override from cell_type + side letter. The
+dataset-agnostic flow builders live in `data.flow`, the FlyWire counterparts in
+`data.flywire`.
+
+Adapted from reiserlab/visualpathways, `src/setup_data/malecns.py`.
 """
 from pathlib import Path
 import warnings
@@ -128,21 +131,48 @@ def get_sorted_nodes(conn_df: pd.DataFrame) -> list[int]:
 # === 2. Neuron metadata ===
 
 
+def fetch_neuron_table(
+    bodyIds, client: Client, returns: str, batch_size: int = 50_000
+) -> pd.DataFrame:
+    """Fetch neuron properties for many body IDs, in batches.
+
+    Sending all ~160,000 IDs in one query risks the server's gateway timeout,
+    so the IDs go in batches of `batch_size`.
+
+    Args:
+        bodyIds: Neurons to look up, in the order the result should have.
+        client: Connected neuPrint client.
+        returns: Cypher `RETURN` items after `n.bodyId as bodyId`, e.g.
+            `"n.type as cell_type"`.
+        batch_size: IDs per query.
+
+    Returns:
+        One row per body ID, with missing values where neuPrint has no neuron.
+    """
+    ids = [int(b) for b in bodyIds]
+    frames = []
+    for start in range(0, len(ids), batch_size):
+        cql = f"""
+            WITH {ids[start:start + batch_size]} as bodyIds
+            MATCH(n:Neuron)
+            WHERE n.bodyId in bodyIds
+            RETURN n.bodyId as bodyId, {returns}
+        """
+        frames.append(client.fetch_custom(cql))
+    neu_df = pd.concat(frames, ignore_index=True)
+    return pd.DataFrame({"bodyId": ids}).merge(neu_df, on="bodyId", how="left")
+
+
 def fetch_neuron_metadata(bodyIds, client: Client) -> pd.DataFrame:
     """Fetch bodyId, instance, cell_type, nt, superclass, subclass, class,
     dimorphism."""
-    cql = f"""
-        WITH {list(bodyIds)} as bodyIds
-        MATCH(n:Neuron)
-        WHERE n.bodyId in bodyIds
-        RETURN n.bodyId as bodyId, n.instance as instance, n.type as cell_type,
-               n.consensusNt as nt, n.superclass as superclass,
-               n.subclass as subclass, n.class as class,
-               n.dimorphism as dimorphism
-    """
-    neu_df = client.fetch_custom(cql)
-    meta = pd.DataFrame({"bodyId": list(bodyIds)})
-    return meta.merge(neu_df, on="bodyId", how="left")
+    return fetch_neuron_table(
+        bodyIds,
+        client,
+        "n.instance as instance, n.type as cell_type, n.consensusNt as nt, "
+        "n.superclass as superclass, n.subclass as subclass, n.class as class, "
+        "n.dimorphism as dimorphism",
+    )
 
 
 def override_r78_metadata(
@@ -448,15 +478,30 @@ def build_sparse_matrices(
 def save_outputs(
     meta: pd.DataFrame,
     prop: csc_matrix,
-    inprop: csc_matrix,
     data_dir: Path,
-    tag: str,
-) -> None:
+    prefix: str,
+) -> list[Path]:
+    """Write `{prefix}_meta.csv` and `{prefix}_prop.npz` into `data_dir`.
+
+    `inprop` is not saved: `data.load_inprop()` derives the identical matrix
+    from `prop`.
+
+    Args:
+        meta: Final neuron table.
+        prop: Synapse-count matrix.
+        data_dir: Output folder (created if missing).
+        prefix: Registry tag, e.g. `malecns_v1.0`.
+
+    Returns:
+        The two paths written.
+    """
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    meta.to_csv(data_dir / f"malecns_{tag}_meta.csv", index=False)
-    sp.sparse.save_npz(data_dir / f"malecns_{tag}_prop.npz", prop)
-    sp.sparse.save_npz(data_dir / f"malecns_{tag}_inprop.npz", inprop)
+    meta_path = data_dir / f"{prefix}_meta.csv"
+    prop_path = data_dir / f"{prefix}_prop.npz"
+    meta.to_csv(meta_path, index=False)
+    sp.sparse.save_npz(prop_path, prop)
+    return [meta_path, prop_path]
 
 
 # === 6. Input RF data ===

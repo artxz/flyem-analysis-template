@@ -203,7 +203,7 @@ def dataset_tag(dataset_name: str, server: str | None = None) -> str:
 # === Build constants (data/build, flow layers) ===
 
 SIDE_CHAR = "r"  # optic lobe the male CNS flow layers are built for
-FLYWIRE_SIDE_CHAR = "r"  # same for FlyWire/FAFB
+FLYWIRE_SIDE_CHAR = "l"  # FlyWire/FAFB flow layers use the left eye (as in visualpathways)
 HIT_THRE = 0.1  # hitting-time threshold for flow layers
 N_FLOW = 20  # number of flow steps
 

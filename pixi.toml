@@ -13,7 +13,10 @@ lab = "jupyter lab --config jupyter_server_config.py"
 download-eyemaps = "python -m flyem_analysis_starter.eyemap.download"
 # Download and verify the prebuilt data (add --dataset <tag> or --all).
 fetch-data = "python -m flyem_analysis_starter.data.fetch"
-# Maintainer only: upload cache/data files as a GitHub data release.
+# Maintainer only: build the data from neuPrint into cache/build/<tag>
+# (--dataset <tag>, --steps matrices flow, --compare); see data/build.py.
+build-data = "python -m flyem_analysis_starter.data.build"
+# Maintainer only: upload built files as a GitHub data release.
 publish-data = "python -m flyem_analysis_starter.data.publish"
 
 [dependencies]

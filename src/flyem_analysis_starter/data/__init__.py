@@ -2,7 +2,8 @@
 
 See `flyem_analysis_starter.data.load` for what `meta`, `prop` and `inprop`
 contain. The build code that makes these files from neuPrint lives in
-`data.malecns` and is not part of the stable API.
+`data.build` (with `data.malecns`, `data.flywire` and `data.flow`) and is not
+part of the stable API.
 """
 
 from __future__ import annotations

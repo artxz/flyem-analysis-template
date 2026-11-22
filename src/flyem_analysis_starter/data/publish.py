@@ -1,10 +1,14 @@
 """Publish a dataset's prebuilt files as a GitHub data release (maintainer only).
 
-Usage, from a clone with the GitHub command-line tool (`gh`) logged in:
+Usage, from a clone with the GitHub command-line tool (`gh`) logged in, after
+`pixi run build-data` (see `data.build`):
 
-    pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1
+    pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1 \
+        --data-dir cache/build/malecns_v1.0
 
-It hashes every `<dataset>_*` file in `config.DATA_DIR`, creates the release as a
+It hashes every `<dataset>_*` file in `--data-dir` (default `config.DATA_DIR`),
+takes their provenance from the folder's `build_manifest.json` (refusing files
+that changed since the build), creates the release as a
 draft with `--latest=false` (so "latest release" stays the code release),
 uploads the files, checks GitHub's copies against the local sizes and hashes,
 publishes the release, and only then writes the entries into the package's
@@ -29,6 +33,7 @@ from pathlib import Path
 from typing import Any
 
 from .. import config
+from .build import BUILD_MANIFEST
 from .fetch import _sha256
 
 _ASSET_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -63,9 +68,34 @@ _LICENSES = {
     "flywire-fafb-v783b": ("CC BY-NC 4.0", "https://flywire.ai/guidelines"),
 }
 
-_DEFAULT_SOURCE = (
-    "local build scripts (s1/s2, not yet in the repository; see docs/plan.md Phase 3)"
-)
+_UNBUILT_SOURCE = "files not made by build-data (no build_manifest.json)"
+
+
+def _build_source(folder: Path, files: Sequence[Path]) -> str | None:
+    """Return the build provenance of `files` from the folder's build manifest.
+
+    Returns:
+        The code versions recorded by `build-data` for the steps that made the
+        files, joined with "; ", or None if the folder has no build manifest.
+
+    Raises:
+        ValueError: A file is not in the manifest or has changed since the
+            build, so the manifest does not describe it.
+    """
+    path = folder / BUILD_MANIFEST
+    if not path.is_file():
+        return None
+    steps = json.loads(path.read_text(encoding="utf-8"))["steps"]
+    sources = []
+    for f in files:
+        step = next((s for s in steps.values() if f.name in s["outputs"]), None)
+        if step is None:
+            raise ValueError(f"{f.name} was not made by build-data ({path})")
+        if step["outputs"][f.name] != _sha256(f):
+            raise ValueError(f"{f.name} has changed since build-data wrote it")
+        if step["source"] not in sources:
+            sources.append(step["source"])
+    return "; ".join(sources)
 
 
 def _manifest_path() -> Path:
@@ -212,7 +242,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dataset", required=True, choices=sorted(config.DATASETS))
     parser.add_argument("--tag", required=True, help="e.g. data-malecns_v1.0-r1")
-    parser.add_argument("--source", default=_DEFAULT_SOURCE, help="build provenance")
+    parser.add_argument(
+        "--source",
+        default=None,
+        help="build provenance (default: read from the folder's build_manifest.json)",
+    )
     parser.add_argument("--data-dir", type=Path, default=config.DATA_DIR)
     parser.add_argument(
         "--dry-run",
@@ -238,7 +272,11 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     files = _dataset_files(args.dataset, args.data_dir)
     print(f"Hashing {len(files)} files in {args.data_dir} ...")
-    entries = _build_entries(files, args.dataset, args.tag, repo, args.source)
+    try:
+        source = args.source or _build_source(args.data_dir, files) or _UNBUILT_SOURCE
+    except ValueError as exc:
+        sys.exit(f"error: {exc}")
+    entries = _build_entries(files, args.dataset, args.tag, repo, source)
     _add_entries(manifest, entries)  # validates the tag before any upload
     notes = _release_notes(args.dataset, entries, commit)
 
