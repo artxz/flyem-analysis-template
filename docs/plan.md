@@ -187,37 +187,50 @@ Turn `src/` into a real package so notebooks and build code import it the same w
 - [x] Make the neuPrint connection lazy so importing never needs a network or token; the getter raises a clear error naming `.env` and `NEUPRINT_APPLICATION_CREDENTIALS` instead of returning `False`, and the `plotter` fetches go through it
   - `neuprint_client.connect(server=, dataset=)` (was `instance=`) accepts a neuPrint name or a registry tag and raises `NeuprintConnectionError`. `verbose=True` no longer prints the account email
 - [x] Rewrite every `utils.*` / `setup_data.*` import: internal (`malecns.py:30`, `plotter.py:35-36`), all six notebooks including mid-notebook imports (`plotting.ipynb`: `utils.plotter`, incl. private `_CNS_RANGE_X/Y` → make public; `receptive_fields.ipynb`: `setup_data.malecns`), and Pixi task paths (`download-eyemaps`)
-  - Notebook setup cells now import `config, data`; meta/prop reads use `data.load_meta` / `load_prop`; `receptive_fields` gets its eyemap from `eyemap.eyemap_dir()`. The notebooks are otherwise unchanged until Phase 3. After the change, `paper_figs_visual_pathways_layers` and `receptive_fields` ran top to bottom with nbconvert (with the local `CI_DEV_PATH` connectome_interpreter clone)
+  - Notebook setup cells now import `config, data`; meta/prop reads use `data.load_meta` / `load_prop`; `receptive_fields` gets its eyemap from `eyemap.eyemap_dir()`. The notebooks are otherwise unchanged until the tutorials are built (Phase 4). After the change, `paper_figs_visual_pathways_layers` and `receptive_fields` ran top to bottom with nbconvert (with the local `CI_DEV_PATH` connectome_interpreter clone)
 - [x] Tests in `tests/`: every module imports with no `.env`; `import flyem_analysis_starter` works from a directory other than the root; no notebook `.py` pair contains `from utils` or `setup_data`; a temporary `.env` setting `FLYEM_DATA_DIR` changes `DATA_DIR`, and `FLYEM_CACHE_DIR` changes `CACHE_DIR`; no cache path contains `:`; the built wheel contains `params/rois/roi_meshes/brain_shell.npz` and `params/data_manifest.json`; the wheel installed (not editable) into a temporary environment outside the repo imports, reads a `params` file, has `PROJECT_ROOT is None`, and resolves `DATA_DIR` / `CACHE_DIR` to the `platformdirs` locations; `load_inprop()` equals `build_sparse_matrices`' inprop (CSC, float32) on a toy edge list; `add_coords2` on meta without `coords2` reproduces the cached column; each subpackage's `__all__` matches `tests/public_api.txt`, so removing or renaming a public name fails until that file and the changelog are updated on purpose. Mark tests that need data or a token with `@pytest.mark.data` / `@pytest.mark.neuprint`
-  - `tests/test_package.py`; all 27 tests pass, the Phase 0 ones included. The old-import check looks at import lines only, because `paper_figs_visual_pathways_layers` cites upstream visualpathways' `setup_data/` paths in prose. The installed-copy test uses `pip install --target` plus `PYTHONPATH` rather than a virtualenv. `params/data_manifest.json` is an empty placeholder until Phase 2
+  - `tests/test_package.py`; all 27 tests pass, the Phase 0 ones included. The old-import check looks at import lines only, because `paper_figs_visual_pathways_layers` cites upstream visualpathways' `setup_data/` paths in prose. The installed-copy test uses `pip install --target` plus `PYTHONPATH` rather than a virtualenv. `params/data_manifest.json` is an empty placeholder until the first upload (Phase 3)
 - [x] Give every name in `__all__` a docstring and type hints; anything not meant to be stable is prefixed with `_` or left out of `__all__`
   - Enforced by `test_public_functions_are_documented`. `plotting` exports only the plotters, the cached fetchers and the outline helpers; the rest of `plotter.py` stays reachable but unstable
-- [ ] Start `CHANGELOG.md`, covering only the stable API (see "What stays stable"); tag `v0.1.0` once Phases 1–3 are done
-  - Started (Unreleased 0.1.0, with migration notes from `utils` / `setup_data`). The tag waits for Phases 2–3
+- [x] Start `CHANGELOG.md`, covering only the stable API (see "What stays stable")
+  - Started (Unreleased 0.1.0, with migration notes from `utils` / `setup_data`). The `v0.1.0` tag is the last item of Phase 4
 
-## Phase 2: Data download
+## Phase 2: Data download code
 
-The main blocker for newcomers. Depends only on Phase 1 and the existing `cache/data/` files, not on Build. The files are hosted as GitHub release assets on this repository.
+The main blocker for newcomers is getting the data. This phase writes the download and publishing code; the files themselves are built and uploaded in Phase 3. The files are hosted as GitHub release assets on this repository.
 
-- [ ] Host the prebuilt files as release assets: `malecns_v1.0_meta.csv`, `_prop.npz`, flow-layer CSVs, FlyWire `flywire-fafb-v783b_*` (about 160 MB in total; the per-file limit is 2 GiB)
-  - one data release per dataset build, tagged `data-<dataset>-r<n>` (first `data-malecns_v1.0-r1` and `data-flywire-fafb-v783b-r1`), separate from the `v0.x.y` code tags and created with `--latest=false`, so "latest release" stays the code release
-  - assets are never replaced in place: a rebuild gets a new tag (`-r2`) and new manifest entries
-  - asset names match the local file names and use only letters, digits, `.`, `_` and `-` (GitHub rewrites other characters)
-  - release notes record the dataset version, build date, source commit and the dataset citations
-  - Not yet uploaded: `publish-data` is written and its dry run passes for both datasets; the upload is waiting on the maintainer (`pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1`, then the same for `flywire-fafb-v783b`, then commit the manifest). The repository is already public, so these releases are public
-- [x] `inprop` is not hosted: `data.load_inprop()` derives it from `prop` (divided by column sums, as in `malecns.py:437-443`), checked with `np.allclose(colsum[colsum > 0], 1, atol=1e-5)`. Do not rebuild via s1 (re-queries neuPrint and overwrites meta/prop that were backfilled with `coords2`)
+- [x] `inprop` is not hosted: `data.load_inprop()` derives it from `prop` (divided by column sums, as in `malecns.py:437-443`), checked with `np.allclose(colsum[colsum > 0], 1, atol=1e-5)`
   - Written in Phase 1. It divides entry by entry like `build_sparse_matrices`, so the two matrices are identical, not just close (3.4 s for male CNS)
 - [x] Add `flyem_analysis_starter.data.fetch_data(dataset="malecns_v1.0", data_dir=None)`, with `pixi run fetch-data` as a thin wrapper, so an installed copy can fetch without the repo. It downloads into `config.DATA_DIR` (in a clone, `cache/data/`) via `*.part`, verifies SHA-256, then `os.replace` (works on Windows; on `PermissionError` say "close notebooks using cache/data and rerun"); skips a file only when its existing hash matches; on mismatch re-downloads and says so
   - URLs have the form `https://github.com/<owner>/<repo>/releases/download/<tag>/<file>`. Each manifest entry holds a list of URLs tried in order, so a mirror (for example a Zenodo archive, for a DOI) can be added later without code changes
-  - while the repo is private, anonymous downloads fail. CI fills `DATA_DIR` with `gh release download` (using the workflow's `GITHUB_TOKEN`) and then runs `fetch-data`, which only verifies the hashes
-  - Done in `data/fetch.py`, with `hosted_datasets()` and a CLI (`--dataset`, `--all`, `--data-dir`). Tested against a local HTTP server in `tests/test_data_fetch.py` (download, skip on matching hash, re-download on mismatch, URL fallback, bad hash keeps the old file, locked-file message). The repository turned out to be public already, so the `gh release download` step is not needed
-- [ ] Keep `data_manifest.json` as package data (`src/flyem_analysis_starter/params/data_manifest.json`) so an installed copy knows the URLs and hashes: file name, release tag, URLs, dataset version, SHA-256, size, build date, source script version. Each package version therefore pins its data releases
+  - Done in `data/fetch.py`, with `hosted_datasets()` and a CLI (`--dataset`, `--all`, `--data-dir`). Tested against a local HTTP server in `tests/test_data_fetch.py` (download, skip on matching hash, re-download on mismatch, URL fallback, bad hash keeps the old file, locked-file message). The repository is already public, so CI needs no `gh release download` step to get past private-repo downloads
+- [x] Keep `data_manifest.json` as package data (`src/flyem_analysis_starter/params/data_manifest.json`) so an installed copy knows the URLs and hashes: file name, release tag, URLs, dataset version, SHA-256, size, build date, source, licence. Each package version therefore pins its data releases
+  - Schema version 1, checked by `test_packaged_manifest_is_well_formed`. The file has no entries until the first upload in Phase 3
 - [x] Add `pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1` (maintainer only): hashes each file, creates the release with `gh release create --latest=false`, uploads the files, and writes their entries into `data_manifest.json`, so the manifest cannot drift from what was uploaded
-  - Done in `data/publish.py`. It creates the release as a draft, checks GitHub's asset sizes and SHA-256 digests against the local files, then publishes it and writes the manifest. `--dry-run` hashes and prints the notes only. Refuses a tag already in the manifest and asset names GitHub would rewrite
+  - Done in `data/publish.py`. It creates the release as a draft, checks GitHub's asset sizes and SHA-256 digests against the local files, then publishes it and writes the manifest. `--dry-run` hashes and prints the notes only (it passes for both datasets on the current `cache/data/` files). Refuses a tag already in the manifest and asset names GitHub would rewrite. Release notes carry each dataset's licence and citations (checked 2026-11-20, see Phase 4)
 
-## Phase 3: Tutorials and documentation
+## Phase 3: Data build and first upload
 
-Each tutorial teaches one idea, runs top to bottom in a few minutes, and is built from material that already exists. `02`–`04` read only cached data and never call `connect()`; `00`, `01`, `05` need a token. Each tutorial passes Restart & Run All before it is committed.
+Make the hosted data reproducible from committed code, then upload it. Decided 2026-11-21: the first upload waits for this build, so the hosted files come from `pixi run build-data` rather than the hand-edited `cache/data/` copies (whose `meta` had `coords2` added by hand), and the release notes can name the build commit. Until the upload, `fetch-data` has nothing to download, so `fetch-data`, the README quickstart, tutorial `00` and the fresh-clone CI job all wait on this phase.
+
+- [ ] Rewrite `local/s1_malecns_data.py`, `local/s1_flywirefafb_data.py`, `local/s2_layers.py` as functions in `data/build.py` (today they are top-level percent scripts that connect and download at import); `local/flow.py` becomes `data/flow.py` (no more `import flow as sd`). They need only `neuprint_client`, `data/malecns.py`, `flow.py` and `config`
+- [ ] Connect from the config dataset registry, not `.env` defaults; take the file prefix from the registry tag (not `c.dataset.split('_')[-1]`, which gives `male-cns:v1.0`); make `save_outputs` take the full prefix instead of hard-coding `malecns_`. Confirm `config.FLYWIRE_SIDE_CHAR` (a guess, see Phase 1) before the FlyWire flow build
+- [ ] Expose it as `pixi run build-data --dataset malecns_v1.0`: writes to `CACHE_DIR/build/{dataset}/`, never `DATA_DIR`, so the current `cache/data/` files are not overwritten; each step writes to a temporary directory and renames on success; skips a step only when its build-manifest entry is complete and the hash matches, unless `--force`
+- [ ] Run the slow flow hitting-time step (2 h 56 min on one core, about 4.5 GB RAM for `malecns_v1.0`) once as a cluster job, not during development; note in the README which steps are slow and which can go to the cluster
+- [ ] Acceptance check against the current `cache/data/` files (identified by the `publish-data --dry-run` hashes): matrix shape and nnz, meta columns and row count, `coords2` equal to the cached column, flow CSV columns (`idx`, `hitting_time`, `instance`) and row count (162,084 for `malecns_v1.0`). Explain every difference before publishing
+- [ ] Host the built files as release assets: `malecns_v1.0_meta.csv`, `_prop.npz`, flow-layer CSVs, FlyWire `flywire-fafb-v783b_*` (about 160 MB in total; the per-file limit is 2 GiB)
+  - `pixi run publish-data --dataset malecns_v1.0 --tag data-malecns_v1.0-r1 --data-dir <CACHE_DIR>/build/malecns_v1.0 --source "data/build.py at <commit>"`, then the same for `flywire-fafb-v783b`; commit `data_manifest.json`. Set `publish.py`'s default `--source` to the build module once it exists
+  - one data release per dataset build, tagged `data-<dataset>-r<n>` (first `data-malecns_v1.0-r1` and `data-flywire-fafb-v783b-r1`), separate from the `v0.x.y` code tags and created with `--latest=false`, so "latest release" stays the code release
+  - assets are never replaced in place: a rebuild gets a new tag (`-r2`) and new manifest entries
+  - asset names match the local file names and use only letters, digits, `.`, `_` and `-` (GitHub rewrites other characters)
+  - release notes record the dataset version, build date, source commit, licence and the dataset citations
+  - the repository is public, so these releases are public as soon as they are published
+- [ ] Test the upload: `pixi run fetch-data --all --data-dir <empty folder>` from a fresh clone, and `fetch_data()` from the built wheel outside the repo on a machine with no GitHub login, to confirm anonymous downloads work; then `pytest -m data` against the downloaded files
+- [ ] Later, not blocking the upload: bring `ol_rf.py`, s1 section 6 (input RF data) and `s3_effconn.py` into the shared library. Recover or rewrite the eight missing modules it needs, move `deferred/ol_rf.py` to `src/flyem_analysis_starter/rf.py`, and add `s3_effconn` as an optional `build-data` step
+
+## Phase 4: Tutorials and documentation
+
+Each tutorial teaches one idea, runs top to bottom in a few minutes, and is built from material that already exists. `02`–`04` read only cached data and never call `connect()`, so they can be written during Phase 3 against the local `cache/data/` files; `00`, `01`, `05` need a token. Each tutorial passes Restart & Run All before it is committed.
 
 | Tutorial | Teaches | Built from |
 | --- | --- | --- |
@@ -230,25 +243,24 @@ Each tutorial teaches one idea, runs top to bottom in a few minutes, and is buil
 
 The three paper-figure notebooks move to `examples/paper_figs/`, unchanged except their setup/import cells and one guard: in `paper_figs_visual_pathways_layers`, a missing flow file raises `FileNotFoundError("run pixi run fetch-data")` unless `RECOMPUTE_FLOW = True` is set (the recompute takes about 3 h on one core).
 
-- [ ] `README.md`:
+- [ ] `README.md` (the quickstart and tutorial `00` are finished after the Phase 3 upload):
   - two-command quickstart (`pixi install`, `pixi run fetch-data`) for `02`–`04`; for `00`, `01`, `05` also "copy `.env.example` to `.env` and add your token"
   - a short "use it from your own project" section: install, `fetch_data()`, where the data and cache folders are and how to move them
-  - how to get a neuPrint token, datasets covered, data provenance, where to ask for help
+  - how to get a neuPrint token, datasets covered, data provenance, licences and citations, where to ask for help
 - [x] `.env.example` (done: neuPrint server, dataset, token placeholder, `SEGMENTATION_SOURCE`, `SHELL_SOURCE`, plotting backends, `CI_DEV_PATH`): add `FLYEM_DATA_DIR` and `FLYEM_CACHE_DIR` once `config.py` exists, and keep the source values in sync with the `config.py` defaults
   - Added in Phase 1 (commented out), and the server, dataset and sources are marked optional
 - [ ] Glossary (README section or `docs/glossary.md`): `prop`, `inprop`, instance, type, hex1/hex2, `coords2`, effective connectivity, flow layers
 - [ ] `CLAUDE.md` / `AGENTS.md`: fill Key Concepts from the glossary and point to the package layout, so AI assistants give correct answers
 - [ ] `CONTRIBUTING.md`: what is stable and what is copy-and-edit (from "What stays stable"), where to keep your own work in a fork, what a pull request into `src/` needs (tests, a changelog line, a `tests/public_api.txt` update if the API changes), and that one maintainer reviews on a best-effort basis
 - [ ] Source notes: a one-line "Adapted from <repo>, <path or commit>" header in each copied file (`plotter.py`, `ng_view.py`, `ol_rf.py`, `roi_assets.py`) and a `params/README.md` entry for the column pins. Confirm the uncertain origins (`plotter.py`, `ng_view.py`, `ol_rf.py`) against the local clones of the paper repos
-- [ ] README "Acknowledgements and third-party code" section built from the tables in Current state; check each source repository's licence is compatible before the repo goes public
-- [ ] Before making the repo public:
+- [ ] README "Acknowledgements and third-party code" section built from the tables in Current state; check each source repository's licence is compatible with public sharing
+- [ ] Public-repository checks (the repository is already public, so these are overdue rather than gating):
   - ask GitHub Support to purge the old commits that held the email (`fafd5d2`, `ea662bd`, `fdd6fb4`)
-  - confirm the male CNS and FlyWire terms allow redistributing the derived matrices, and cite both datasets in the README and the data record
-  - Checked 2026-11-20: male CNS v1.0 is CC BY 4.0 (male-cns.janelia.org/download); FlyWire public release v783 is CC BY-NC 4.0 (flywire.ai/guidelines; its Zenodo connectivity record says CC BY 4.0, and the stricter licence is used). Both allow redistribution with attribution, FlyWire for non-commercial use only. The licence and citations go into each release's notes and manifest entries; the README still needs them
   - check that no cluster paths or internal hostnames appear in docs or notebooks
-- [ ] Right after making it public: run `fetch_data()` on a machine with no GitHub login to confirm anonymous downloads work, then drop the CI `gh release download` step
+  - [x] confirm the male CNS and FlyWire terms allow redistributing the derived matrices. Checked 2026-11-20: male CNS v1.0 is CC BY 4.0 (male-cns.janelia.org/download); FlyWire public release v783 is CC BY-NC 4.0 (flywire.ai/guidelines; its Zenodo connectivity record says CC BY 4.0, and the stricter licence is used). Both allow redistribution with attribution, FlyWire for non-commercial use only. The licence and citations go into each release's notes and manifest entries; the README still needs them
+- [ ] Tag `v0.1.0` once Phases 1–4 are done (needs the Distribution decision below); move the changelog's Unreleased section under it
 
-## Phase 4: Dependencies, automated checks and data build
+## Phase 5: Dependencies and automated checks
 
 Keep the environment reproducible for people who did not build it, and catch breakage before a newcomer does.
 
@@ -262,30 +274,23 @@ Keep the environment reproducible for people who did not build it, and catch bre
 **Automated checks (GitHub Actions)**
 
 - [ ] On every push: `pixi install` on Linux and Windows, import every module, run `pytest -m "not data and not neuprint"`, build the wheel and run the installed-copy tests outside the checkout, and fail if any `.py`/`.ipynb` pair is out of sync
-- [ ] On pull requests, a "fresh clone" job on ubuntu, windows and macos (arm64): clean checkout, `pixi install`, `pixi run fetch-data` (data restored from an Actions cache), the remaining tests, and every notebook in `tutorials/` executed with nbconvert. `02`–`04` run with the neuPrint variables unset; `00`, `01`, `05` skip when no token secret is available (fork PRs). Data comes from the release assets (see Phase 2 for the extra step while the repo is private)
+- [ ] On pull requests, a "fresh clone" job on ubuntu, windows and macos (arm64): clean checkout, `pixi install`, `pixi run fetch-data` (data restored from an Actions cache, filled from the Phase 3 release assets), the remaining tests, and every notebook in `tutorials/` executed with nbconvert. `02`–`04` run with the neuPrint variables unset; `00`, `01`, `05` skip when no token secret is available (fork PRs)
 - [ ] Protect `main` with required status checks (the push job) instead of required reviews: with one maintainer there is no second reviewer, so CI is the gate
 - [ ] Weekly, the same job with the Actions cache disabled, so `fetch-data` does a real cold download; it times `pixi install`, `fetch-data` and executing `02`, and fails above 15 minutes. The on-demand run also executes the gallery
 - [ ] Replace `test_dependencies.py` with `pixi run smoke`, which imports the real stack (`neuprint`, `navis`, `connectome_interpreter`, `torch`, `cloudvolume`, `flybrains`) and runs one tiny neuPrint query
-
-**Data build (independent track; blocks none of the success criteria)**
-
-- [ ] Rewrite `local/s1_malecns_data.py`, `local/s1_flywirefafb_data.py`, `local/s2_layers.py` as functions in `data/build.py` (today they are top-level percent scripts that connect and download at import); `local/flow.py` becomes `data/flow.py` (no more `import flow as sd`). They need only `neuprint_client`, `data/malecns.py`, `flow.py` and `config`
-- [ ] Later item, after the build works: bring `ol_rf.py`, s1 section 6 (input RF data) and `s3_effconn.py` into the shared library. Recover or rewrite the eight missing modules it needs, move `deferred/ol_rf.py` to `src/flyem_analysis_starter/rf.py`, and add `s3_effconn` as an optional `build-data` step
-- [ ] Connect from the config dataset registry, not `.env` defaults; take the file prefix from the registry tag (not `c.dataset.split('_')[-1]`, which gives `male-cns:v1.0`); make `save_outputs` take the full prefix instead of hard-coding `malecns_`
-- [ ] Expose it as `pixi run build-data --dataset malecns_v1.0`: writes to `CACHE_DIR/build/{dataset}/`, never `DATA_DIR`; each step writes to a temporary directory and renames on success; skips a step only when its build-manifest entry is complete and the hash matches, unless `--force`; the build manifest is promoted to `data_manifest.json` deliberately
-- [ ] Acceptance check against the hosted files: matrix shape and nnz, meta columns and row count, flow CSV columns (`idx`, `hitting_time`, `instance`) and row count (162,084 for `malecns_v1.0`)
-- [ ] Note in the README which steps are slow (the flow hitting-time file took 2 h 56 min on one core, about 4.5 GB RAM) and which can go to the cluster
 
 ## Open decisions
 
 Decided on 2026-11-19:
 
-- **Audience:** public. The licence check, data-terms check and history purge are required before release (Phase 3), and the Janelia shared drive is ruled out for hosting.
+- **Audience:** public. The licence check, data-terms check and history purge are required (Phase 4), and the Janelia shared drive is ruled out for hosting.
 - **Package name:** `flyem-analysis-starter` (import `flyem_analysis_starter`).
 - **Use:** both an editable clone and a regular install are supported, following the connectome_interpreter, navis and flybrains approach (see Purpose and "Where files live").
-- **Data hosting:** GitHub release assets on this repository (Phase 2). They are fast and reliable from GitHub Actions, and data releases sit next to the code tags. Accepted trade-offs: no DOI, and the data goes with the repository if it is deleted or leaves GitHub. A Zenodo archive of a data release can be added later as a second URL in the manifest.
+- **Data hosting:** GitHub release assets on this repository (code in Phase 2, upload in Phase 3). They are fast and reliable from GitHub Actions, and data releases sit next to the code tags. Accepted trade-offs: no DOI, and the data goes with the repository if it is deleted or leaves GitHub. A Zenodo archive of a data release can be added later as a second URL in the manifest.
 - **Maintenance model:** middle ground. The public API in `src/` is kept stable with releases; tutorials and examples are copy-and-edit material (see "What stays stable").
-- **Owners:** one maintainer (the repository owner) for all phases. With no second reviewer, required CI checks gate `main` (Phase 4). The hand-timed run in the success criteria still needs one person who did not build the repo.
+- **Owners:** one maintainer (the repository owner) for all phases. With no second reviewer, required CI checks gate `main` (Phase 5). The hand-timed run in the success criteria still needs one person who did not build the repo.
+
+Decided on 2026-11-21: the first data upload waits for the data build (Phase 3).
 
 Still open, and needed only before the first release (`v0.1.0`):
 
@@ -293,4 +298,4 @@ Still open, and needed only before the first release (`v0.1.0`):
 | --- | --- | --- |
 | Distribution | Install from the Git URL only, or also publish releases to PyPI | README install line, release workflow; PyPI fits the middle-ground model but adds a publishing step per release for one maintainer |
 
-Suggested order: merge the Phase 0 pull request, then Phase 1 (package, config, import migration, import tests), then Phase 2 (download), then 3, then 4. The data build in Phase 4 can run in parallel at any point after Phase 1.
+Order: Phases 0 → 5 in sequence. The one overlap: tutorials `02`–`04` (Phase 4) can be written during Phase 3, since they read only local data. Phases were reordered and renumbered on 2026-11-22, moving the data build ahead of the tutorials; Phases 0–2 kept their numbers, so commit messages and branch names (`phase1-package`, `phase2-data`) still match.

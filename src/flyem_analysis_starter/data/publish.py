@@ -64,7 +64,7 @@ _LICENSES = {
 }
 
 _DEFAULT_SOURCE = (
-    "local build scripts (s1/s2, not yet in the repository; see docs/plan.md Phase 4)"
+    "local build scripts (s1/s2, not yet in the repository; see docs/plan.md Phase 3)"
 )
 
 
