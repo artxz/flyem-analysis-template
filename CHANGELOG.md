@@ -16,6 +16,8 @@ release that raises a `DeprecationWarning`, and the entry below says what to cha
 - `config`: `PROJECT_ROOT`, `DATA_DIR`, `CACHE_DIR` (overridable with
   `FLYEM_DATA_DIR` / `FLYEM_CACHE_DIR`), `params_path()`, the dataset registry
   (`DATASETS`, `dataset_tag()`), and the build and plotting-source constants.
+  `FLOW_METHOD = "legacy"` keeps the flow layers on the navis < 1.12 traversal
+  math that made the published files.
 - `neuprint_client`: `connect()` and `get_client()`. They raise
   `NeuprintConnectionError` with setup instructions instead of returning `False`.
 - `data`: `load_meta()`, `load_prop()`, `load_inprop()` (derived from `prop`),

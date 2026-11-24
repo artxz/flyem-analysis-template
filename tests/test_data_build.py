@@ -242,9 +242,10 @@ def test_flow_step_with_fake_connectome_interpreter(
     calls: dict[str, Any] = {}
 
     def find_instance_flow(inprop, idx_to_instance, flow_seed_groups, file_path,
-                           save_prefix, flow_steps, flow_thre):  # fmt: skip
+                           save_prefix, flow_steps, flow_thre, method):  # fmt: skip
         """Record the call and write both tables with upstream's column name."""
-        calls.update(seeds=flow_seed_groups, n=inprop.shape[0], prefix=save_prefix)
+        calls.update(seeds=flow_seed_groups, n=inprop.shape[0], prefix=save_prefix,
+                     method=method)  # fmt: skip
         per_neuron, per_group = flow.flow_file_names(save_prefix, flow_steps, flow_thre)
         names = list(idx_to_instance.values())
         pd.DataFrame(
@@ -265,6 +266,7 @@ def test_flow_step_with_fake_connectome_interpreter(
         "seeds": flow.flow_seeds(side),
         "n": 4,
         "prefix": f"{FW}_{side}_flow_",
+        "method": "legacy",
     }
     table = load.load_flow(FW, side=side, data_dir=out)
     assert list(table.columns) == ["idx", "hitting_time", "instance"]

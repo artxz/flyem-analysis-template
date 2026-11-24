@@ -54,6 +54,7 @@ def fetch_instance_flow(
     save_prefix: str,
     steps: int = 20,
     thre: float = 0.1,
+    method: str | None = None,
 ) -> pd.DataFrame:
     """Compute per-neuron hitting times and write them as two CSV files.
 
@@ -72,6 +73,8 @@ def fetch_instance_flow(
         save_prefix: File-name prefix, e.g. `malecns_v1.0_r_flow_`.
         steps: Number of flow steps.
         thre: Flow threshold.
+        method: navis `BayesianTraversalModel` math, `"legacy"` or
+            `"conditioned"` (see `config.FLOW_METHOD`); None uses navis' default.
 
     Returns:
         The per-neuron table.
@@ -86,6 +89,7 @@ def fetch_instance_flow(
         save_prefix=save_prefix,
         flow_steps=steps,
         flow_thre=thre,
+        method=method,
     )
     per_neuron, per_group = flow_file_names(save_prefix, steps, thre)
     out = Path(data_dir) / per_neuron

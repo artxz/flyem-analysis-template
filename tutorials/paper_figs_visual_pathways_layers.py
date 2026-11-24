@@ -104,7 +104,7 @@ if not flow_file.exists():
         inprop, dict(zip(meta.idx, meta.instance.fillna('unknown'))),
         flow_seed_groups=[f'{t}_{side.upper()}' for t in SEED_TYPES],
         file_path=str(data_folder), save_prefix=f'{dataset}_{side}_flow_',
-        flow_steps=n_steps, flow_thre=hit_thre,
+        flow_steps=n_steps, flow_thre=hit_thre, method=config.FLOW_METHOD,
     )
 flow = pd.read_csv(flow_file).rename(columns={'cell_group': 'instance'})
 flow.head()

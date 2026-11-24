@@ -338,7 +338,7 @@ else:
         conn_mat,
         idx_to_instance,
         file_path=data_folder,
-        save_prefix=f'{dataset}_LR_flow_')
+        save_prefix=f'{dataset}_LR_flow_', method=config.FLOW_METHOD)
     paths_flow_df, w_filter, w_all, thre_step = ci.layered_el(
         conn_mat, inidx, outidx, nr_hops_max, idx_to_instance,
         thre_cumsum = weight_frac_cumsum, thre_step_min = thre_step_min,

@@ -13,6 +13,7 @@ flyem_analysis_starter.config: DATA_DIR
 flyem_analysis_starter.config: DEFAULT_DATASET
 flyem_analysis_starter.config: Dataset
 flyem_analysis_starter.config: FLYWIRE_DATASET
+flyem_analysis_starter.config: FLOW_METHOD
 flyem_analysis_starter.config: FLYWIRE_SIDE_CHAR
 flyem_analysis_starter.config: HIT_THRE
 flyem_analysis_starter.config: MODEL_COMPARISON_DIR

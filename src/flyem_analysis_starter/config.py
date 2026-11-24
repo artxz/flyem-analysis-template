@@ -45,6 +45,7 @@ __all__ = [
     "FLYWIRE_SIDE_CHAR",
     "HIT_THRE",
     "N_FLOW",
+    "FLOW_METHOD",
     "SEGMENTATION_SOURCE",
     "SHELL_SOURCE",
 ]
@@ -203,9 +204,13 @@ def dataset_tag(dataset_name: str, server: str | None = None) -> str:
 # === Build constants (data/build, flow layers) ===
 
 SIDE_CHAR = "r"  # optic lobe the male CNS flow layers are built for
-FLYWIRE_SIDE_CHAR = "l"  # FlyWire/FAFB flow layers use the left eye (as in visualpathways)
+FLYWIRE_SIDE_CHAR = "l"  # FlyWire flow layers use the left eye (as in visualpathways)
 HIT_THRE = 0.1  # hitting-time threshold for flow layers
 N_FLOW = 20  # number of flow steps
+# navis BayesianTraversalModel math for the flow layers. "legacy" is the model of
+# navis < 1.12, which made the published files; "conditioned" is the corrected one.
+# Needs navis with navis-org/navis#202 (the pixi environment has it).
+FLOW_METHOD = "legacy"
 
 
 # === Plotting sources (neuron meshes and the brain shell) ===

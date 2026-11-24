@@ -61,8 +61,10 @@ alphashape = ">=1.3.1,<2"
 # This repository's own package, editable: changes in src/ apply without reinstalling.
 flyem-analysis-starter = { path = ".", editable = true }
 python-dotenv = "==1.0.0"
-connectome-interpreter = { git = "https://github.com/artxz/connectome_interpreter.git", branch = "az-eyemap-path" }
-navis = { git = "https://github.com/artxz/navis.git", rev = "93de9aff5ca913407f9d85983a9f4e3c6a8c5dd5" }
+# Branch adding `method` to the flow functions (for config.FLOW_METHOD), on top of az-eyemap-path.
+connectome-interpreter = { git = "https://github.com/artxz/connectome_interpreter.git", branch = "az-update-navis-call" }
+# Branch of upstream PR navis-org/navis#202 (batched BayesianTraversalModel.run, method="legacy").
+navis = { git = "https://github.com/artxz/navis.git", branch = "pr/bayesian-speedup" }
 flybrains = ">=0.5.2, <0.6"
 cloud-volume = ">=12.15.0, <13"
 

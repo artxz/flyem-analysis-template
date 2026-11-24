@@ -290,7 +290,8 @@ def _build_flow(dataset: str, side: str, tmp: Path, folder: Path) -> None:
     inprop = load.load_inprop(dataset, folder)
     print(
         f"Computing flow from the {side!r} eye over {inprop.shape[0]:,} neurons "
-        f"({config.N_FLOW} steps, threshold {config.HIT_THRE}); this takes hours ..."
+        f"({config.N_FLOW} steps, threshold {config.HIT_THRE}, "
+        f"method {config.FLOW_METHOD!r}) ..."
     )
     flow.fetch_instance_flow(
         inprop,
@@ -300,6 +301,7 @@ def _build_flow(dataset: str, side: str, tmp: Path, folder: Path) -> None:
         f"{dataset}_{side}_flow_",
         steps=config.N_FLOW,
         thre=config.HIT_THRE,
+        method=config.FLOW_METHOD,
     )
 
 
