@@ -12,7 +12,8 @@ Steps, in order:
   (`<tag>_prop.npz`), queried from neuPrint. Needs a token; takes minutes.
 - `flow`: information-flow layers seeded from one eye
   (`<tag>_<side>_flow_20step_0.1thre_hit.csv` and `..._per_group.csv`), computed
-  from the matrices. About 3 hours on one core; run it as a cluster job.
+  from the matrices. About 5 minutes for the male CNS on a laptop (it took about
+  3 hours before navis batched `BayesianTraversalModel.run`).
 
 Files go to `config.CACHE_DIR / "build" / <tag>`, never to `config.DATA_DIR`, so
 the downloaded copies are not overwritten. Each step writes into a temporary

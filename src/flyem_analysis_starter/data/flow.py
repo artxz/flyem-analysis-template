@@ -63,7 +63,8 @@ def fetch_instance_flow(
     `hitting_time`, `instance`) and `..._per_group.csv` (per instance) into
     `data_dir`. Its `cell_group` column is renamed to `instance` in both.
 
-    Slow: about 3 hours on one core and 4.5 GB of memory for the male CNS.
+    Takes about 5 minutes for the male CNS on a laptop with the batched navis
+    model (navis-org/navis#202); the per-node model of navis 1.11 took 3 hours.
 
     Args:
         inprop: Input-fraction matrix (see `data.load_inprop`).

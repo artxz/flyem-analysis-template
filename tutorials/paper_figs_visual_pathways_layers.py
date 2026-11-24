@@ -33,7 +33,7 @@
 #
 # Inputs are the cached files the other tutorials use (`cache/data/malecns_v1.0_meta.csv`,
 # `_prop.npz`). The layers need one information-flow run over the whole connectome
-# (about an hour); its result is cached in `cache/data/` and reused.
+# (about 5 minutes); its result is cached in `cache/data/` and reused.
 
 # %% [markdown]
 # ## Set up
@@ -90,7 +90,7 @@ meta.main_groups.value_counts()
 # input-normalized connectivity and records, for every neuron, the step at which its
 # cumulative input first exceeds `hit_thre` (its "layer"). It writes
 # `{dataset}_{side}_flow_{n_steps}step_{hit_thre}thre_hit.csv` (per neuron) and
-# `..._hit_per_group.csv` (per instance). This is the slow step (about an hour); it is
+# `..._hit_per_group.csv` (per instance). This is the slow step (about 5 minutes); it is
 # skipped when the file exists.
 
 # %%
