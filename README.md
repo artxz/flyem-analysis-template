@@ -75,7 +75,7 @@ Run times on a laptop:
 | Step | Male CNS | FlyWire |
 |---|---|---|
 | `matrices` (meta and connectivity) | about 16 min | about 6 min |
-| `flow` (hitting-time layers) | about 5 min | not yet measured |
+| `flow` (hitting-time layers) | about 5 min | about 1.5 min |
 
 The flow step was about 3 hours with navis 1.11. It is fast now because the pixi
 environment uses navis with the batched `BayesianTraversalModel`
