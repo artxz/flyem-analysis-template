@@ -54,6 +54,34 @@ Copy `.env.example` to `.env` and fill in your values:
 cp .env.example .env
 ```
 
+## Data
+
+Download the prebuilt files of the default dataset into `DATA_DIR` (add
+`--dataset <tag>` for another one, or `--all`):
+
+```bash
+pixi run fetch-data
+```
+
+Maintainers can rebuild them from neuPrint (needs the token in `.env`) into
+`cache/build/<tag>`, and check them against the downloaded files with `--compare`:
+
+```bash
+pixi run build-data --dataset malecns_v1.0 --compare
+```
+
+Run times on a laptop:
+
+| Step | Male CNS | FlyWire |
+|---|---|---|
+| `matrices` (meta and connectivity) | about 16 min | about 6 min |
+| `flow` (hitting-time layers) | about 5 min | not yet measured |
+
+The flow step was about 3 hours with navis 1.11. It is fast now because the pixi
+environment uses navis with the batched `BayesianTraversalModel`
+(navis-org/navis#202). `config.FLOW_METHOD = "legacy"` keeps the results
+byte-identical to the published files.
+
 ## Verify Installation
 
 ```bash
