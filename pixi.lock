@@ -419,7 +419,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d1/cd/9c377e88dc001f839ca69a2839025f4be5a830a6773839edefed0e7738e2/compressed_segmentation-2.3.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/6c/41/a6d07ebb7a714bd3f100f7bf2a20fbe0a45e43c7f87ddf3976281e103d9d/crc32c-2.9.post0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/1b/82f0f0d8858d4432be1af790477edf62aef90324041aa07c57e57bef1af7/cryptography-50.0.1-cp311-abi3-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d0/5e/315011fbd60c83f064586aae3bd5388204401252c2c26e9cb219cef001e4/deflate-0.9.0-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -452,7 +452,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/46/ef/7e122880d8205cba3358cc863e4836a353bd3ce6a23bb26fc976c3a1942d/navis_fastcore-0.13.2-cp39-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/ec/c6/2cf06a369079717b948e53940404a62f2d2408cd8d5424ff9e876b0213c0/ncollpyde-0.19.0-cp36-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -841,7 +841,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4c/62/5322f5d6374da694e700788cef81f044bd49edd57f7b1d62c88bf741da4e/compressed_segmentation-2.3.3-cp311-cp311-macosx_10_9_x86_64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/99/9a/2c7fd0851f05ab898d63a5e2da786865cdf0b43ba7ffaf7cb5dc44e62fff/crc32c-2.9.post0-cp311-cp311-macosx_10_9_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/bb/ad/5d6702db60b1e40b41ef513b6967ff5848f307d50f8449baf1634f5908f1/cryptography-50.0.1.tar.gz
       - pypi: https://files.pythonhosted.org/packages/5a/41/4b4d9045577df904d5e51bee6cc7a82bb51e6d159adf683e04d2bce52436/deflate-0.9.0-cp311-abi3-macosx_10_9_x86_64.whl
@@ -874,7 +874,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/91/02/c2a909a543f92dc2237a300f7a0a733c5d9f8219a4ce7b54309fea14e681/navis_fastcore-0.13.2-cp39-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/75/a3/b89736d889380317d575e1183d4f611821ebbcaca0b15617850a3431939c/ncollpyde-0.19.0-cp36-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -1262,7 +1262,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f7/91/71e0d304fbee59a080dc08293fadeddc334bd9b097a45eaa65ed06a3928a/compressed_segmentation-2.3.3-cp311-cp311-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/59/ee/9a8920b25432e2835ab02fad15ec8982517ce9bc11b614baff1f8333d239/crc32c-2.9.post0-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/ba/19/797e2aaac9df6a66f1550f49979dc1b1e39ecd2077501c30efa81e8d5d67/cryptography-50.0.1-cp311-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/8d/72/927b0fe00bf6117aa53f0b0e6c363d220b0ff9440afb769b54c563143222/deflate-0.9.0-cp311-abi3-macosx_11_0_arm64.whl
@@ -1295,7 +1295,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/6f/d7/4cf93d33a2dc2b849756157400203df6fa9e0509bc09752c228feb2a6112/navis_fastcore-0.13.2-cp39-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/75/a3/b89736d889380317d575e1183d4f611821ebbcaca0b15617850a3431939c/ncollpyde-0.19.0-cp36-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -1677,7 +1677,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/22/ba/f5f86f7f6e09fe8755f19b76bfcabf2a663a9e9662073d97db71736ee8a4/compressed_segmentation-2.3.3-cp311-cp311-win_amd64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/74/e6/94949ed561313422b15c8a4065a5b6cf8777c6e4b3a1d8fb991ac8132210/crc32c-2.9.post0-cp311-cp311-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/42/8b/cb12b1b60c91b074ca6bf0fdd59aa8f10d8bc5f73af8faece86ef0421b37/cryptography-50.0.1-cp311-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/8e/55/249c277c4a22db006fd468c7af33cb00fed99d0842441fab38ed409036ff/deflate-0.9.0-cp311-abi3-win_amd64.whl
@@ -1710,7 +1710,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/b9/da/503d000f25998ef665e693cb0c9ff32ddea48acbceff1881090061d0f8c7/navis_fastcore-0.13.2-cp39-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/18/c4/f81dd1b9afe6374cd5bd1c36fc2aa8679c7d12c9d98d99465242dc8bc866/ncollpyde-0.19.0-cp36-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -2173,7 +2173,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d1/cd/9c377e88dc001f839ca69a2839025f4be5a830a6773839edefed0e7738e2/compressed_segmentation-2.3.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/6c/41/a6d07ebb7a714bd3f100f7bf2a20fbe0a45e43c7f87ddf3976281e103d9d/crc32c-2.9.post0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/e1/1b/82f0f0d8858d4432be1af790477edf62aef90324041aa07c57e57bef1af7/cryptography-50.0.1-cp311-abi3-manylinux_2_28_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/d0/5e/315011fbd60c83f064586aae3bd5388204401252c2c26e9cb219cef001e4/deflate-0.9.0-cp311-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl
@@ -2206,7 +2206,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/46/ef/7e122880d8205cba3358cc863e4836a353bd3ce6a23bb26fc976c3a1942d/navis_fastcore-0.13.2-cp39-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/ec/c6/2cf06a369079717b948e53940404a62f2d2408cd8d5424ff9e876b0213c0/ncollpyde-0.19.0-cp36-abi3-manylinux_2_5_x86_64.manylinux1_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -2607,7 +2607,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/4c/62/5322f5d6374da694e700788cef81f044bd49edd57f7b1d62c88bf741da4e/compressed_segmentation-2.3.3-cp311-cp311-macosx_10_9_x86_64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/99/9a/2c7fd0851f05ab898d63a5e2da786865cdf0b43ba7ffaf7cb5dc44e62fff/crc32c-2.9.post0-cp311-cp311-macosx_10_9_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/bb/ad/5d6702db60b1e40b41ef513b6967ff5848f307d50f8449baf1634f5908f1/cryptography-50.0.1.tar.gz
       - pypi: https://files.pythonhosted.org/packages/5a/41/4b4d9045577df904d5e51bee6cc7a82bb51e6d159adf683e04d2bce52436/deflate-0.9.0-cp311-abi3-macosx_10_9_x86_64.whl
@@ -2640,7 +2640,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/91/02/c2a909a543f92dc2237a300f7a0a733c5d9f8219a4ce7b54309fea14e681/navis_fastcore-0.13.2-cp39-abi3-macosx_10_12_x86_64.whl
       - pypi: https://files.pythonhosted.org/packages/75/a3/b89736d889380317d575e1183d4f611821ebbcaca0b15617850a3431939c/ncollpyde-0.19.0-cp36-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -3040,7 +3040,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/f7/91/71e0d304fbee59a080dc08293fadeddc334bd9b097a45eaa65ed06a3928a/compressed_segmentation-2.3.3-cp311-cp311-macosx_11_0_arm64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/59/ee/9a8920b25432e2835ab02fad15ec8982517ce9bc11b614baff1f8333d239/crc32c-2.9.post0-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/ba/19/797e2aaac9df6a66f1550f49979dc1b1e39ecd2077501c30efa81e8d5d67/cryptography-50.0.1-cp311-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/8d/72/927b0fe00bf6117aa53f0b0e6c363d220b0ff9440afb769b54c563143222/deflate-0.9.0-cp311-abi3-macosx_11_0_arm64.whl
@@ -3073,7 +3073,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/6f/d7/4cf93d33a2dc2b849756157400203df6fa9e0509bc09752c228feb2a6112/navis_fastcore-0.13.2-cp39-abi3-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/75/a3/b89736d889380317d575e1183d4f611821ebbcaca0b15617850a3431939c/ncollpyde-0.19.0-cp36-abi3-macosx_10_9_x86_64.macosx_11_0_arm64.macosx_10_9_universal2.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -3467,7 +3467,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/e0/4d/1997771cd9ce7f484bf63f5c6ceaffded1425ab970b909a3300235bdfad9/cloud_files-6.4.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/d2/38/414b37fe6de65db5a3add906b2e7e2a266d1214e87f0b6764593f17e3090/cloud_volume-12.15.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/22/ba/f5f86f7f6e09fe8755f19b76bfcabf2a663a9e9662073d97db71736ee8a4/compressed_segmentation-2.3.3-cp311-cp311-win_amd64.whl
-      - pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+      - pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
       - pypi: https://files.pythonhosted.org/packages/74/e6/94949ed561313422b15c8a4065a5b6cf8777c6e4b3a1d8fb991ac8132210/crc32c-2.9.post0-cp311-cp311-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/42/8b/cb12b1b60c91b074ca6bf0fdd59aa8f10d8bc5f73af8faece86ef0421b37/cryptography-50.0.1-cp311-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/8e/55/249c277c4a22db006fd468c7af33cb00fed99d0842441fab38ed409036ff/deflate-0.9.0-cp311-abi3-win_amd64.whl
@@ -3500,7 +3500,7 @@ environments:
       - pypi: https://files.pythonhosted.org/packages/34/93/74b9a82304fa193b8fb3ff539529212205d44d0ffea83449cec12a3a33cb/molesq-0.4.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/76/28/57eda16adfba5dd18260cbe6605c4cc4e94caef4f74dc06621d2de6acb1f/morphops-0.1.13-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/86/c2/dec9722dc3474c164a0b6bcd9a7ed7da542c98af8cabce05374abab35edd/multiprocess-0.70.19-py311-none-any.whl
-      - pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+      - pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
       - pypi: https://files.pythonhosted.org/packages/b9/da/503d000f25998ef665e693cb0c9ff32ddea48acbceff1881090061d0f8c7/navis_fastcore-0.13.2-cp39-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/18/c4/f81dd1b9afe6374cd5bd1c36fc2aa8679c7d12c9d98d99465242dc8bc866/ncollpyde-0.19.0-cp36-abi3-win_amd64.whl
       - pypi: https://files.pythonhosted.org/packages/ca/6f/a04e900f465ff3221ccc395522503e2d10e79fa21f2723c8e177aae1e0d1/opentelemetry_api-1.44.0-py3-none-any.whl
@@ -5715,7 +5715,7 @@ packages:
   - click
   - numpy
   - pytest
-- pypi: git+https://github.com/artxz/connectome_interpreter.git?branch=az-update-navis-call#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
+- pypi: git+https://github.com/artxz/connectome_interpreter.git?rev=d2f9f1658e940ff44d0df0f327e40d58a6d667b2#d2f9f1658e940ff44d0df0f327e40d58a6d667b2
   name: connectome-interpreter
   version: 2.11.0
   requires_dist:
@@ -13789,7 +13789,7 @@ packages:
   - pkg:pypi/narwhals?source=compressed-mapping
   size: 293989
   timestamp: 1787261063562
-- pypi: git+https://github.com/artxz/navis.git?branch=pr%2Fbayesian-speedup#ecb4e5bd6d54b957a775dd371f6955e03b382103
+- pypi: git+https://github.com/artxz/navis.git?rev=ecb4e5bd6d54b957a775dd371f6955e03b382103#ecb4e5bd6d54b957a775dd371f6955e03b382103
   name: navis
   version: 2.0.0rc1
   requires_dist:

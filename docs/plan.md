@@ -274,6 +274,7 @@ Keep the environment reproducible for people who did not build it, and catch bre
 **Dependencies**
 
 - [ ] Upstream the `connectome_interpreter` changes on `az-eyemap-path` and the `navis` fork commit, or pin both to tags that will not move. First check what each fork adds that upstream lacks: `eyemap_dir=` in `hex_heatmap` / `plot_mollweide_projection` (tutorial `04`), and whatever `find_instance_flow` needs from the navis fork
+  - Pinned 2026-11-26 (until upstream releases): `pixi.toml` uses `rev =` instead of `branch =` for both forks, at the commits the published flow files were built with: navis `ecb4e5b` (head of `pr/bayesian-speedup`, navis-org/navis#202, still open) and connectome_interpreter `d2f9f16` (head of `az-update-navis-call`, no upstream PR yet). A re-solve can no longer move them. The commits still need a tag on each fork to stay on GitHub if the branches are rebased or deleted. A regular install gets PyPI navis and connectome-interpreter, which lack `method`, so `build-data` needs the pixi environment until upstream releases include it
 - [ ] Keep `pixi.lock` committed; note in the README that a PyPI-to-conda swap needs a clean `.pixi` rebuild (stale pip files caused an OpenMP crash before)
 - [ ] List `trimesh` explicitly, since the optic-lobe notebook imports it directly
 - [ ] Add `ruff` (lint and format) to the pre-commit hooks set up in Phase 0
