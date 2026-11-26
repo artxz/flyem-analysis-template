@@ -232,6 +232,11 @@ Make the hosted data reproducible from committed code, then upload it. Decided 2
   - asset names match the local file names and use only letters, digits, `.`, `_` and `-` (GitHub rewrites other characters)
   - release notes record the dataset version, build date, source commit, licence and the dataset citations
   - the repository is public, so these releases are public as soon as they are published
+  - Dry run 2026-11-26 (from `dd1f4af`, nothing uploaded): both datasets hash cleanly against their build manifests. `data-malecns_v1.0-r1`: meta, `prop.npz` and two right-eye flow CSVs, 90 MiB, CC BY 4.0. `data-flywire-fafb-v783b-r1`: meta, `prop.npz` and two left-eye flow CSVs, 74 MiB, CC BY-NC 4.0. URLs point at `artxz/flyem-analysis-template`. Paused here; before the real run:
+    - [ ] Push the commits. Phases 1–3 (16 commits on `phase3-build`) are not on GitHub, so the build commits the notes cite (`e1797ce`, `a4ea693`, `f09b943`) and the publish commit would be dead links. Merge into `main` first (preferred), or push the branch and open a pull request
+    - [ ] `publish.py`: pass `--target <HEAD sha>` to `gh release create`. Without it GitHub tags the default branch head, today `9a1ae05` (before Phase 1, no `build.py`), so the data tag would point at code that could not build the files. Also refuse to publish when HEAD is not on the remote (`git branch -r --contains HEAD`)
+    - [ ] `publish.py`: give each file the `source` of its own build step, not the joined sources of the folder (today every file lists both the matrices and the flow commit). Add a test
+    - [ ] Tag the fork commits the lock pins (navis `ecb4e5b`, connectome_interpreter `d2f9f16`), so they stay on GitHub if the branches are rebased or deleted; see Phase 5
 - [ ] Test the upload: `pixi run fetch-data --all --data-dir <empty folder>` from a fresh clone, and `fetch_data()` from the built wheel outside the repo on a machine with no GitHub login, to confirm anonymous downloads work; then `pytest -m data` against the downloaded files
 - [ ] Later, not blocking the upload: bring `ol_rf.py`, s1 section 6 (input RF data) and `s3_effconn.py` into the shared library. Recover or rewrite the eight missing modules it needs, move `deferred/ol_rf.py` to `src/flyem_analysis_starter/rf.py`, and add `s3_effconn` as an optional `build-data` step
 
