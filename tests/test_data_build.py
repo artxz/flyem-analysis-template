@@ -6,6 +6,7 @@ need no network, token or hours of compute.
 
 from __future__ import annotations
 
+import json
 import sys
 import types
 from pathlib import Path
@@ -211,7 +212,8 @@ def test_flywire_matrices_step_end_to_end(fake_neuprint, tmp_path):
 
     files = publish._dataset_files(FW, out)
     assert [f.name for f in files] == list(build.matrix_files(FW))
-    assert publish._build_source(out, files).startswith("flyem")
+    sources = publish._build_sources(out, files)
+    assert all(s.startswith("flyem") for s in sources.values())
 
 
 def test_compare_reports_differences(fake_neuprint, tmp_path):
@@ -274,6 +276,28 @@ def test_flow_step_with_fake_connectome_interpreter(
     steps = build.read_manifest(out, FW)["steps"]
     assert set(steps["flow"]["inputs"]) == set(build.matrix_files(FW))
 
+    # Each published file cites the commit of the step that built it, not the
+    # sources of every step in the folder. Both steps ran from the same code
+    # here, so give the flow step a different source by hand.
+    manifest_file = out / build.BUILD_MANIFEST
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    manifest["steps"]["flow"]["source"] = "flow commit"
+    manifest_file.write_text(json.dumps(manifest), encoding="utf-8")
+    files = publish._dataset_files(FW, out)
+    sources = publish._build_sources(out, files)
+    flow_files = set(flow.flow_file_names(f"{FW}_{side}_flow_", config.N_FLOW,
+                                          config.HIT_THRE))  # fmt: skip
+    assert {n for n, s in sources.items() if s == "flow commit"} == flow_files
+    matrix_source = manifest["steps"]["matrices"]["source"]
+    assert {n for n, s in sources.items() if s == matrix_source} == set(
+        build.matrix_files(FW)
+    )
+    entries = publish._build_entries(files, FW, f"data-{FW}-r1", "o/r", sources)
+    assert {e["name"]: e["source"] for e in entries} == sources
+    notes = publish._release_notes(FW, entries, "abc123")
+    assert f"  - flow commit: `{min(flow_files)}`" in notes
+    assert f"  - {matrix_source}: `{FW}_meta.csv`, `{FW}_prop.npz`" in notes
+
 
 def test_publish_refuses_files_changed_after_build(fake_neuprint, tmp_path):
     out = tmp_path / "build"
@@ -281,12 +305,12 @@ def test_publish_refuses_files_changed_after_build(fake_neuprint, tmp_path):
     files = publish._dataset_files(FW, out)
     files[0].write_text("hand edit")
     with pytest.raises(ValueError, match="changed since build-data"):
-        publish._build_source(out, files)
+        publish._build_sources(out, files)
     extra = out / f"{FW}_extra.csv"
     extra.write_text("x")
     with pytest.raises(ValueError, match="not made by build-data"):
-        publish._build_source(out, [extra])
-    assert publish._build_source(tmp_path, files) is None  # no manifest there
+        publish._build_sources(out, [extra])
+    assert publish._build_sources(tmp_path, files) is None  # no manifest there
 
 
 def test_build_never_writes_into_data_dir():
