@@ -1,14 +1,12 @@
 import pickle
-import os
 import re
 import unicodedata
 from pathlib import Path
 import logging
-from typing import Union
+from typing import Any, Union
 import datetime
 import warnings
 
-from dotenv import find_dotenv, load_dotenv
 import pandas as pd
 import numpy as np
 from IPython.display import Image, display
@@ -32,10 +30,31 @@ import navis
 import navis.interfaces.neuprint as neu
 import cloudvolume as cv
 
-from utils.ng_view import NG_View
-from utils import roi_assets
+from .. import config
+from ..neuprint_client import _resolve as _resolve_dataset
+from ..neuprint_client import get_client
+from .ng_view import NG_View
+from . import roi_assets
 
 logging.getLogger('navis').setLevel(logging.WARN)
+
+
+def _dataset_cache_dir(kind:str) -> Path:
+    """Return `CACHE_DIR/<kind>/<dataset tag>` for the dataset neuPrint queries go to.
+
+    The dataset is the current default neuPrint client's, if one exists, and
+    otherwise the one `connect()` would pick, so cache hits need no connection.
+    The registry tag (`malecns_v1.0`) is used rather than the neuPrint name
+    (`male-cns:v1.0`), whose colon is not allowed in Windows paths.
+    """
+    import neuprint
+
+    try:
+        client = neuprint.default_client()
+        server, dataset = client.server, client.dataset
+    except Exception:  # no default client yet
+        server, dataset = _resolve_dataset(None, None)
+    return config.CACHE_DIR / kind / config.dataset_tag(dataset, server)
 
 
 
@@ -73,7 +92,7 @@ def get_synapses(
 
     For performance reasons, this function first attempts to load the synapses from a local cache.
     If this fails, the synapses are retrieved from neuprint and saved in the cache. The cache is
-    located at the ${PROJECT_PATH}/cache/synapses. To force a reload, you can either set the
+    located at `CACHE_DIR/synapses/<dataset>`. To force a reload, you can either set the
     ignore_cache flag or delete files from the cache.
 
     Parameters
@@ -86,15 +105,14 @@ def get_synapses(
     Returns
     -------
     """
-    cachedir = Path(find_dotenv()).parent / "cache" / "synapses"
-    if not cachedir.exists():
-        cachedir.mkdir(parents=True)
+    cachedir = _dataset_cache_dir("synapses")
+    cachedir.mkdir(parents=True, exist_ok=True)
     syn_file = cachedir / f"sy_{body_id}.pickle"
     if not ignore_cache and syn_file.is_file():
         with syn_file.open('rb') as syn_fh:
             syns = pickle.load(syn_fh)
     else:
-        syns = neu.fetch_synapses(NC(bodyId=body_id))
+        syns = neu.fetch_synapses(NC(bodyId=body_id), client=get_client())
         with syn_file.open('wb') as syn_fh:
             pickle.dump(syns, syn_fh)
     return syns
@@ -109,7 +127,7 @@ def get_skeleton(
 
     For performance reasons, this function first attempts to load the skeleton from a local cache.
     If this fails, the skeleton is retrieved from neuprint and saved in the cache. The cache is
-    located at the PROJECT_PATH/cache/skeletons. To force a reload, you can either set the
+    located at `CACHE_DIR/skeletons/<dataset>`. To force a reload, you can either set the
     ignore_cache flag or delete files from the cache.
 
     Parameters
@@ -124,16 +142,15 @@ def get_skeleton(
     skel : NeuronList
         A skeleton for the neuron of body_id
     """
-    cachedir = Path(find_dotenv()).parent / "cache" / "skeletons"
-    if not cachedir.exists():
-        cachedir.mkdir(parents=True)
+    cachedir = _dataset_cache_dir("skeletons")
+    cachedir.mkdir(parents=True, exist_ok=True)
     skel_file = cachedir / f"sk_{body_id}.pickle"
     if not ignore_cache and skel_file.is_file():
         with skel_file.open('rb') as skel_fh:
             skel = pickle.load(skel_fh)
     else:
         try:
-            skel = neu.fetch_skeletons(NC(bodyId=body_id))
+            skel = neu.fetch_skeletons(NC(bodyId=body_id), client=get_client())
             with skel_file.open('wb') as skel_fh:
                 pickle.dump(skel, skel_fh)
         except ValueError:
@@ -181,7 +198,7 @@ def get_mesh(
 
     For performance reasons, this function first attempts to load the mesh from a local cache.
     If this fails, the mesh is retrieved from neuprint and saved in the cache. The cache is
-    located at the PROJECT_PATH/cache/meshes. To force a reload, you can either set the
+    located at `CACHE_DIR/meshes/<dataset>`. To force a reload, you can either set the
     ignore_cache flag or delete files from the cache.
 
     Parameters
@@ -196,7 +213,7 @@ def get_mesh(
         lighter mesh — useful when rendering many neurons at once. The returned
         coordinates are in the 8 nm-voxel frame regardless of `lod`. Cached per-LOD.
     save_cache : bool, default = True
-        When disabled, a freshly-fetched mesh is not written to `cache/meshes` — useful
+        When disabled, a freshly-fetched mesh is not written to the cache — useful
         for one-off fetches (e.g. large batches of body IDs used only once) that would
         otherwise fill the cache with entries you'll never reuse.
 
@@ -206,9 +223,7 @@ def get_mesh(
         A mesh for the neuron of body_id
     """
 
-    assert os.environ.get('SEGMENTATION_SOURCE'),\
-        "Please set the `SEGMENTATION_SOURCE` variable in your environment."
-    cachedir = Path(find_dotenv()).parent / "cache" / "meshes"
+    cachedir = _dataset_cache_dir("meshes")
     mesh_fn = cachedir / (f"ms_{body_id}.pickle" if lod is None else f"ms_{body_id}_lod{lod}.pickle")
     if not ignore_cache and mesh_fn.is_file():
         with mesh_fn.open('rb') as mesh_fh:
@@ -217,8 +232,9 @@ def get_mesh(
         ## FIXME(@floesche): remove SEGMENTATION_SOURCE in the future
         mesh = neu.fetch_mesh_neuron(
             NC(bodyId=body_id)
-          , seg_source=os.environ['SEGMENTATION_SOURCE']
-          , lod=lod)
+          , seg_source=config.SEGMENTATION_SOURCE
+          , lod=lod
+          , client=get_client())
         if save_cache:
             cachedir.mkdir(parents=True, exist_ok=True)
             with mesh_fn.open('wb') as mesh_fh:
@@ -249,7 +265,7 @@ def get_meshes(
         (e.g. `2`) fetches lighter meshes, useful for rendering many neurons at once.
     save_cache : bool, default = True
         Passed to `get_mesh()`. Set `False` to skip writing freshly-fetched meshes to
-        `cache/meshes` (e.g. for large one-off batches you won't reuse).
+        the cache (e.g. for large one-off batches you won't reuse).
 
     Returns
     -------
@@ -272,7 +288,7 @@ def get_roi(
 
     For performance reasons, this function attempts to load the ROI from a local cache first.
     If this fails, the ROI is retrieved from neuprint and saved in the cache. The cache is
-    located at the PROJECT_PATH/cache/rois. To force a reload, you can either set the
+    located at `CACHE_DIR/rois/<dataset>`. To force a reload, you can either set the
     `ignore_cache` flag or delete files from the cache folder.
 
     Parameters
@@ -287,14 +303,14 @@ def get_roi(
     roi : navis.Volume
         An ROI.
     """
-    cachedir = Path(find_dotenv()).parent / "cache" / "rois"
+    cachedir = _dataset_cache_dir("rois")
     cachedir.mkdir(parents=True, exist_ok=True)
     roi_fn = cachedir / f"roi_{slugify(roi_name)}.pickle"
     if not ignore_cache and roi_fn.is_file():
         with roi_fn.open('rb') as roi_fh:
             roi = pickle.load(roi_fh)
     else:
-        roi = neu.fetch_roi(roi_name)
+        roi = neu.fetch_roi(roi_name, client=get_client())
         with roi_fn.open('wb') as roi_fh:
             pickle.dump(roi, roi_fh)
     return roi
@@ -683,9 +699,9 @@ def get_shadow_roi(
 
 def show_figure(
     fig:go.Figure
-  , width=1200, height=800
-  , static=False
-  , showlegend=True
+  , width:int=1200, height:int=800
+  , static:bool=False
+  , showlegend:bool=True
 ) -> None:
     """
     Outputs figure either as dynamic (default) or static image
@@ -728,7 +744,7 @@ def save_figure(
   , bg_color:str|None=None
   , replace:bool=True
   , tight:bool=True
-  , **save_kws
+  , **save_kws:Any
 ) -> Path:
     """
     Save a plotly or matplotlib figure to an image file at an explicit path.
@@ -994,11 +1010,11 @@ def alpha_plane(
 
 # CNS bounding box in the 8 nm-voxel frame, shared by `plot_3d_cns` (as plotly scene
 # axis ranges) and `plot_2d_cns` (as matplotlib axis limits) so the two framings agree.
-_CNS_RANGE_X = (5000, 91000)
-_CNS_RANGE_Y = (5000, 53000)
-_CNS_RANGE_Z = (10000, 43000)
+CNS_RANGE_X = (5000, 91000)
+CNS_RANGE_Y = (5000, 53000)
+CNS_RANGE_Z = (10000, 43000)
 
-# Defaults for the pre-built ROI backdrops (see `utils.roi_assets`). `brain` is the
+# Defaults for the pre-built ROI backdrops (see `plotting.roi_assets`). `brain` is the
 # central brain plus both optic lobes -- the whole-CNS framing these plotters use;
 # `cb` is the central brain alone, matching upstream visualpathways' published panels.
 _OUTLINE_REGION = 'brain'
@@ -1006,7 +1022,7 @@ _OUTLINE_COLOR = (0.4, 0.4, 0.4, 1.0)
 _OUTLINE_LINEWIDTH = 1.0
 _OUTLINE_FILL_COLOR = (0.82, 0.82, 0.82, 1.0)
 # plane the 3-D outline rings are drawn on, in the 8 nm-voxel frame; inside
-# `_CNS_RANGE_Z` and behind the neurons for the anterior camera.
+# `CNS_RANGE_Z` and behind the neurons for the anterior camera.
 _OUTLINE_Z = 30000
 
 
@@ -1042,7 +1058,7 @@ def _rings_to_path(rings:list[np.ndarray]) -> mpl_path.Path:
 
 def plot_3d_cns(
     bodyid:int|list[int]
-    , celltype:str|list[str]=None
+    , celltype:str|list[str]|None=None
     , show_skeletons:bool=False
     , show_meshes:bool=False
     , show_shell:bool=False
@@ -1051,12 +1067,12 @@ def plot_3d_cns(
     , outline_region:str=_OUTLINE_REGION
     , zoom:float=4.0
     , palette:str='viridis'
-    , color=None
-    , scatter_kws:dict=None
+    , color:str|tuple[float, ...]|None=None
+    , scatter_kws:dict|None=None
     , mesh_lod:int=2
     , annotate:bool=False
     , inline:bool=False
-    , **kwargs
+    , **kwargs:Any
 ) -> go.Figure:
     """
     Plot VPNs with a CNS outline as background, frotal view with slightly modified camera settings.
@@ -1121,9 +1137,9 @@ def plot_3d_cns(
         scatter_kws = {'mode': 'lines', 'color': 'black', 'opacity':1}
 
     # range of cns
-    range_x = list(_CNS_RANGE_X)
-    range_y = list(_CNS_RANGE_Y)
-    range_z = list(_CNS_RANGE_Z)
+    range_x = list(CNS_RANGE_X)
+    range_y = list(CNS_RANGE_Y)
+    range_z = list(CNS_RANGE_Z)
     range_ratio = np.concatenate([np.diff(range_x), np.diff(range_y), np.diff(range_z)])
     range_ratio = range_ratio / np.linalg.norm(range_ratio)
     # multiplicative factor ~ zooming
@@ -1131,7 +1147,7 @@ def plot_3d_cns(
 
     plotlist = []
     if show_skeletons:
-        plotlist += [get_skeletons(bodyid)] # from madvisc.utils.plotter
+        plotlist += [get_skeletons(bodyid)]
     if show_meshes:
         plotlist += [get_meshes(bodyid, lod=mesh_lod, save_cache=False)]
     if show_shell:
@@ -1226,7 +1242,7 @@ def plot_3d_cns(
 
 def plot_2d_cns(
     bodyid:int|list[int]
-    , celltype:str|list[str]=None
+    , celltype:str|list[str]|None=None
     , show_skeletons:bool=True
     , show_meshes:bool=False
     , show_outline:bool=False
@@ -1235,14 +1251,14 @@ def plot_2d_cns(
     , view:tuple=('x', '-y')
     , zoom:float=1.0
     , palette:str='viridis'
-    , color=None
+    , color:str|tuple[float, ...]|None=None
     , linewidth:float=0.75
     , mesh_lod:int=2
     , rasterize:bool=False
     , annotate:bool=False
     , figsize:tuple=(15.23, 8.5)
-    , ax:plt.Axes=None
-    , **kwargs
+    , ax:plt.Axes|None=None
+    , **kwargs:Any
 ) -> tuple[MplFigure, plt.Axes]:
     """
     Plot neurons over a CNS outline as true vector graphics, in the same anterior view
@@ -1272,7 +1288,7 @@ def plot_2d_cns(
         plot neuron meshes — see the caveat above
     show_outline : bool, default=False
         draw the CNS boundary as a vector path, read from the pre-built rings in
-        `params/rois/roi_outlines` (see `utils.roi_assets`). Milliseconds, and the
+        `params/rois/roi_outlines` (see `plotting.roi_assets`). Milliseconds, and the
         esophageal foramen comes along as its own ring.
 
         Only the three stored projections — `xy` (anterior), `xz` (dorsal) and `zy`
@@ -1394,7 +1410,7 @@ def plot_2d_cns(
     # Frame the same box as `plot_3d_cns`. `navis.plot2d` keeps the data in positive
     # coordinates and inverts the matplotlib axis for a negated view (the default
     # '-y'), so limits stay positive and are ordered descending to keep that inversion.
-    lims = {'x': _CNS_RANGE_X, 'y': _CNS_RANGE_Y, 'z': _CNS_RANGE_Z}
+    lims = {'x': CNS_RANGE_X, 'y': CNS_RANGE_Y, 'z': CNS_RANGE_Z}
     for axis_name, spec in zip(('x', 'y'), view[:2]):
         lo, hi = lims[spec.lstrip('-')]
         mid, half = (lo + hi) / 2, (hi - lo) / 2 / zoom
@@ -1439,10 +1455,7 @@ def get_shell_cns(ignore_cache:bool=False) -> cv.mesh.Mesh:
         shell of CNS
     """
 
-    load_dotenv()
-    assert os.environ.get('SHELL_SOURCE'),\
-        "Please set the `SHELL_SOURCE` variable in your environment."
-    cachedir = Path(find_dotenv()).parent / "cache" / "cns_shell_cv"
+    cachedir = config.CACHE_DIR / "cns_shell_cv"
     cachedir.mkdir(parents=True, exist_ok=True)
     roi_fn = cachedir / "cns_shell.pickle"
     if not ignore_cache and roi_fn.is_file():
@@ -1450,7 +1463,7 @@ def get_shell_cns(ignore_cache:bool=False) -> cv.mesh.Mesh:
             roi = pickle.load(roi_fh)
     else:
         vol = cv.CloudVolume(
-            f"precomputed://{os.environ['SHELL_SOURCE']}"
+            f"precomputed://{config.SHELL_SOURCE}"
           , use_https=True
           , progress=False
         )
@@ -1571,7 +1584,8 @@ def get_outline_cns(
     ----------
     ignore_cache : bool, default=False
         accepted for backwards compatibility and ignored — there is nothing left to
-        recompute. Regenerate the assets with `src/setup_data/make_roi_assets.py`.
+        recompute. Regenerate the assets with
+        `python -m flyem_analysis_starter.plotting.make_roi_assets`.
     region : str, default='brain'
         `'brain'` (central brain + optic lobes) or `'cb'` (central brain only)
     z_plane : float, default=30000
@@ -1586,6 +1600,7 @@ def get_outline_cns(
     if ignore_cache:
         warnings.warn(
             "`ignore_cache` no longer does anything: `get_outline_cns` reads the"
-            " pre-built rings. Rebuild them with src/setup_data/make_roi_assets.py."
+            " pre-built rings. Rebuild them with"
+            " `python -m flyem_analysis_starter.plotting.make_roi_assets`."
           , DeprecationWarning, stacklevel=2)
     return get_outline_rings_cns(region=region, view='xy', z_plane=z_plane)[0]

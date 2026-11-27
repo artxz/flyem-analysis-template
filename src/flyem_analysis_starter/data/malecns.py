@@ -1,14 +1,18 @@
 """Download and assemble malecns meta + sparse matrices from neuprint.
 
-Produces `malecns_{tag}_meta.csv`, `prop.npz`, `inprop.npz` in `cache/data/`.
-Consumed by `local/s1_malecns_data.py`. Uses tot_weight normalization
-(not upstream), and instance override from cell_type + side letter. The
-dataset-agnostic lateral-flow builders live in `local/flow.py`.
+Produces `malecns_v1.0_meta.csv` and `_prop.npz`. Called by `data.build`; not
+part of the stable API (only `add_coords2`, re-exported from
+`flyem_analysis_starter.eyemap`, is). Uses tot_weight normalization (not
+upstream), and instance override from cell_type + side letter. The
+dataset-agnostic flow builders live in `data.flow`, the FlyWire counterparts in
+`data.flywire`.
+
+Adapted from reiserlab/visualpathways, `src/setup_data/malecns.py`.
 """
+from collections.abc import Sequence
 from pathlib import Path
 import warnings
 
-from dotenv import find_dotenv
 import numpy as np
 import pandas as pd
 import scipy as sp
@@ -27,7 +31,8 @@ from neuprint import (
 
 # One definition of the two-eye frame, shared with the eyemap that
 # `download_eyemaps` writes, so neuron coords and background lattice cannot drift.
-from setup_data.download_eyemaps import coords2_x
+from ..config import params_path
+from ..eyemap.download import coords2_x
 
 NT_SIGN = {
     "acetylcholine": 1,
@@ -42,33 +47,69 @@ NT_SIGN = {
 
 SIDE_WORD = {"left": "L", "right": "R", "noside": "0"}
 
-PARAMS_DIR = Path(find_dotenv()).parent / "params"
+PARAMS_DIR = params_path()
 
 # === 1. Connectivity ===
 
 
-def fetch_connectivity(client: Client | None = None) -> pd.DataFrame:
-    """Download all Neuron→Neuron adjacencies (type IS NOT NULL on both ends),
-    drop every LA(R)/LA(L) row, and collapse per bodyId pair into a flat
-    edge list."""
-    neu, adj = fetch_adjacencies(NC(type=NotNull), NC(type=NotNull), client=client)
-    in_lamina = adj["roi"].isin(["LA(R)", "LA(L)"])
+def fetch_typed_edges(
+    client: Client | None,
+    drop_rois: Sequence[str],
+    chunk_size: int = 20_000,
+) -> pd.DataFrame:
+    """Download every typed-to-typed neuron edge, summed over ROIs except `drop_rois`.
 
-    # Optional, keep the L1/L2/L3 ↔ L4 reciprocal lamina-cartridge edges 
-    # It will change tot_weight normalization and every downstream
-    # cache, so it would require a full s1→s3 rebuild (and the FlyWire analog
-    # `s1_flywirefafb_data.py` mirrors the drop-all behavior — update both).
-    type_by_bid = dict(zip(neu["bodyId"], neu["type"]))
-    pre_t = adj["bodyId_pre"].map(type_by_bid)
-    post_t = adj["bodyId_post"].map(type_by_bid)
-    keep_lamina = in_lamina & (
-        (pre_t.isin(["L1", "L2", "L3"]) & (post_t == "L4"))
-        | ((pre_t == "L4") & post_t.isin(["L1", "L2", "L3"]))
-    )
-    
-    adj = adj.loc[(~in_lamina), ["bodyId_pre", "bodyId_post", "weight"]]
-    adj["weight"] = adj["weight"].astype(np.int32)
-    return adj.groupby(["bodyId_pre", "bodyId_post"], as_index=False, sort=False)["weight"].sum()
+    Calls `fetch_adjacencies` for `chunk_size` presynaptic neurons at a time and
+    reduces each chunk to one row per neuron pair before fetching the next, so
+    memory stays bounded (one call for the whole male CNS needs more than
+    16 GB). Per pair, neuprint's per-ROI rows (including its `NotPrimary`
+    remainder) sum to the edge's total weight, so the result equals one big
+    call followed by the same drop and sum. Pairs whose only synapses lie in
+    `drop_rois` are left out.
+
+    Args:
+        client: neuPrint client (None uses the default client).
+        drop_rois: ROIs whose synapses are not counted, e.g. the laminae.
+        chunk_size: Presynaptic neurons per `fetch_adjacencies` call.
+
+    Returns:
+        Columns `bodyId_pre`, `bodyId_post`, `weight` (int32).
+    """
+    if client is None:
+        from neuprint import default_client
+
+        client = default_client()
+    typed = client.fetch_custom(
+        "MATCH (n:Neuron) WHERE n.type IS NOT NULL RETURN n.bodyId AS bodyId"
+    )["bodyId"].sort_values().to_numpy()
+    parts = []
+    for start in range(0, len(typed), chunk_size):
+        chunk = typed[start : start + chunk_size].tolist()
+        end = start + len(chunk)
+        print(f"  presynaptic neurons {start:,}-{end:,} of {len(typed):,}")
+        _, adj = fetch_adjacencies(
+            NC(bodyId=chunk), NC(type=NotNull), client=client
+        )
+        adj = adj.loc[
+            ~adj["roi"].isin(list(drop_rois)), ["bodyId_pre", "bodyId_post", "weight"]
+        ]
+        adj["weight"] = adj["weight"].astype(np.int32)
+        pairs = adj.groupby(["bodyId_pre", "bodyId_post"], as_index=False, sort=False)
+        parts.append(pairs["weight"].sum())
+    edges = pd.concat(parts, ignore_index=True)
+    edges["weight"] = edges["weight"].astype(np.int32)
+    return edges
+
+
+def fetch_connectivity(client: Client | None = None) -> pd.DataFrame:
+    """Download all typed-to-typed adjacencies, dropping the lamina ROIs.
+
+    Every `LA(R)`/`LA(L)` synapse is dropped, including the L1/L2/L3 to L4
+    lamina-cartridge edges. Keeping those would change the `tot_weight`
+    normalization and every downstream file, and the FlyWire build
+    (`data.flywire`) drops its laminae the same way, so change both or neither.
+    """
+    return fetch_typed_edges(client, ["LA(R)", "LA(L)"])
 
 
 def _remint_r78_bodyids(df: pd.DataFrame, side: str) -> pd.DataFrame:
@@ -127,21 +168,48 @@ def get_sorted_nodes(conn_df: pd.DataFrame) -> list[int]:
 # === 2. Neuron metadata ===
 
 
+def fetch_neuron_table(
+    bodyIds, client: Client, returns: str, batch_size: int = 50_000
+) -> pd.DataFrame:
+    """Fetch neuron properties for many body IDs, in batches.
+
+    Sending all ~160,000 IDs in one query risks the server's gateway timeout,
+    so the IDs go in batches of `batch_size`.
+
+    Args:
+        bodyIds: Neurons to look up, in the order the result should have.
+        client: Connected neuPrint client.
+        returns: Cypher `RETURN` items after `n.bodyId as bodyId`, e.g.
+            `"n.type as cell_type"`.
+        batch_size: IDs per query.
+
+    Returns:
+        One row per body ID, with missing values where neuPrint has no neuron.
+    """
+    ids = [int(b) for b in bodyIds]
+    frames = []
+    for start in range(0, len(ids), batch_size):
+        cql = f"""
+            WITH {ids[start:start + batch_size]} as bodyIds
+            MATCH(n:Neuron)
+            WHERE n.bodyId in bodyIds
+            RETURN n.bodyId as bodyId, {returns}
+        """
+        frames.append(client.fetch_custom(cql))
+    neu_df = pd.concat(frames, ignore_index=True)
+    return pd.DataFrame({"bodyId": ids}).merge(neu_df, on="bodyId", how="left")
+
+
 def fetch_neuron_metadata(bodyIds, client: Client) -> pd.DataFrame:
     """Fetch bodyId, instance, cell_type, nt, superclass, subclass, class,
     dimorphism."""
-    cql = f"""
-        WITH {list(bodyIds)} as bodyIds
-        MATCH(n:Neuron)
-        WHERE n.bodyId in bodyIds
-        RETURN n.bodyId as bodyId, n.instance as instance, n.type as cell_type,
-               n.consensusNt as nt, n.superclass as superclass,
-               n.subclass as subclass, n.class as class,
-               n.dimorphism as dimorphism
-    """
-    neu_df = client.fetch_custom(cql)
-    meta = pd.DataFrame({"bodyId": list(bodyIds)})
-    return meta.merge(neu_df, on="bodyId", how="left")
+    return fetch_neuron_table(
+        bodyIds,
+        client,
+        "n.instance as instance, n.type as cell_type, n.consensusNt as nt, "
+        "n.superclass as superclass, n.subclass as subclass, n.class as class, "
+        "n.dimorphism as dimorphism",
+    )
 
 
 def override_r78_metadata(
@@ -258,7 +326,7 @@ def add_coords2(meta: pd.DataFrame) -> pd.DataFrame:
     string `'nan'` -- so the usual index filters drop them.
 
     The matching background lattice is the `hex1b`/`hex2b` columns that
-    `setup_data.download_eyemaps` appends to each hemisphere eyemap from the same
+    `flyem_analysis_starter.eyemap.download` appends to each hemisphere eyemap from the same
     `coords2_x()`: `coords2` is exactly `'hex2b - hex1b, hex2b + hex1b'`.
 
     Args:
@@ -409,11 +477,12 @@ def finalize_meta(meta: pd.DataFrame, sorted_nodes: list[int]) -> pd.DataFrame:
             .str.replace(r"_indeterminate", "", regex=True)
         )
 
-    # after `side` exists: coords2 is a function of (coords, side)
-    out = add_coords2(out)
-
     nodes_to_idx = {n: i for i, n in enumerate(sorted_nodes)}
     out["idx"] = out["bodyId"].map(nodes_to_idx)
+
+    # after `side` exists: coords2 is a function of (coords, side). Added last
+    # so it is the final column, as in the published meta files.
+    out = add_coords2(out)
     out = out.sort_values("idx").reset_index(drop=True)
     return out
 
@@ -447,15 +516,30 @@ def build_sparse_matrices(
 def save_outputs(
     meta: pd.DataFrame,
     prop: csc_matrix,
-    inprop: csc_matrix,
     data_dir: Path,
-    tag: str,
-) -> None:
+    prefix: str,
+) -> list[Path]:
+    """Write `{prefix}_meta.csv` and `{prefix}_prop.npz` into `data_dir`.
+
+    `inprop` is not saved: `data.load_inprop()` derives the identical matrix
+    from `prop`.
+
+    Args:
+        meta: Final neuron table.
+        prop: Synapse-count matrix.
+        data_dir: Output folder (created if missing).
+        prefix: Registry tag, e.g. `malecns_v1.0`.
+
+    Returns:
+        The two paths written.
+    """
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    meta.to_csv(data_dir / f"malecns_{tag}_meta.csv", index=False)
-    sp.sparse.save_npz(data_dir / f"malecns_{tag}_prop.npz", prop)
-    sp.sparse.save_npz(data_dir / f"malecns_{tag}_inprop.npz", inprop)
+    meta_path = data_dir / f"{prefix}_meta.csv"
+    prop_path = data_dir / f"{prefix}_prop.npz"
+    meta.to_csv(meta_path, index=False)
+    sp.sparse.save_npz(prop_path, prop)
+    return [meta_path, prop_path]
 
 
 # === 6. Input RF data ===

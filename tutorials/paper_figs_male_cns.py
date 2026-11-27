@@ -40,24 +40,22 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # %%
 import os
-from utils import olc_client
+from flyem_analysis_starter.neuprint_client import connect
 from neuprint import Client, fetch_neurons, fetch_custom, NeuronCriteria as NC
 
-c = olc_client.connect(verbose=True)          # male-cns:v1.0 from `.env`
+c = connect(verbose=True)                    # male-cns:v1.0 unless `.env` says otherwise
 
 # The other connectomes are on neuPrint too; the same token is valid on both servers.
 # neuprint makes the most recently created Client the default, so every query below passes
@@ -81,7 +79,7 @@ import navis
 import navis.interfaces.neuprint as neu
 import flybrains                              # registers template brains + bundled transforms
 
-data_folder = PROJECT_ROOT / 'cache' / 'data'
+data_folder = config.DATA_DIR
 data_folder.mkdir(parents=True, exist_ok=True)
 
 VOXEL_NM = 8

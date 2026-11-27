@@ -10,17 +10,17 @@ unioning the projected faces, and the `alphashape` route in
 
 This script pays that cost once, offline, and writes small files:
 
-* `params/rois/roi_meshes/{region}_shell.npz` -- vertex-clustered mesh, plotted
+* `src/flyem_analysis_starter/params/rois/roi_meshes/{region}_shell.npz` -- vertex-clustered mesh, plotted
   directly instead of the 3 M-face original.
-* `params/rois/roi_outlines/outline_{region}_{view}_{i}.csv` -- the projected
+* `.../params/rois/roi_outlines/outline_{region}_{view}_{i}.csv` -- the projected
   silhouette as rings of `x1,y1` points; `i=0` is the exterior and `i>=1` are
   holes (for the central brain in anterior view, the esophageal foramen). The
   one-ring-per-file layout with `x1,y1` columns is upstream visualpathways'
   format (`params/outline_cb_1.csv`, `outline_cb_2.csv`), so these files drop
   into `utils.projection_plots.plot_neuron_with_outlines()` and friends as an
   `outlines_bkgd` list, as well as into this repo's plotters.
-* `params/rois/roi_assets_manifest.json` -- provenance for both of the above.
-* `cache/cns_shell_cv/cns_shell.pickle` -- the full-resolution fused shell in
+* `.../params/rois/roi_assets_manifest.json` -- provenance for both of the above.
+* `CACHE_DIR/cns_shell_cv/cns_shell.pickle` -- the full-resolution fused shell in
   the layout `plotter.get_shell_cns()` expects, so neither repo re-downloads it.
 
 Outlines are silhouettes of the mesh itself (union of the projected triangles),
@@ -29,16 +29,19 @@ out as real polygon interiors. A hole is therefore the region where no tissue
 lies at *any* depth, so the foramen ring is tighter than upstream's t-bar alpha
 shape -- concentric with it, about a third of the area.
 
+The assets are package data, so this writes into the source tree and only runs
+from an editable clone (`config.PROJECT_ROOT`). Raw downloads are cached in
+`CACHE_DIR/roi_meshes_raw`.
+
 Usage:
-    python src/setup_data/make_roi_assets.py
-    python src/setup_data/make_roi_assets.py --regions cb --views xy --force
+    python -m flyem_analysis_starter.plotting.make_roi_assets
+    python -m flyem_analysis_starter.plotting.make_roi_assets --regions cb --views xy --force
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import os
 import pickle
 from datetime import date
 from pathlib import Path
@@ -47,16 +50,16 @@ from typing import Iterable, Sequence
 import numpy as np
 import pandas as pd
 import shapely
-from dotenv import find_dotenv, load_dotenv
+from .. import config
 
-load_dotenv(find_dotenv())
-PROJECT_ROOT = Path(find_dotenv()).parent
-ROI_DIR = PROJECT_ROOT / "params" / "rois"
+# Package data in the source tree. Only `main()` writes here, after checking
+# that this is an editable clone (see `_require_clone`).
+ROI_DIR = config.params_path("rois")
 MESH_DIR = ROI_DIR / "roi_meshes"
 OUTLINE_DIR = ROI_DIR / "roi_outlines"
 MANIFEST_FN = ROI_DIR / "roi_assets_manifest.json"
-RAW_CACHE_DIR = PROJECT_ROOT / "cache" / "roi_meshes_raw"
-SHELL_CACHE_FN = PROJECT_ROOT / "cache" / "cns_shell_cv" / "cns_shell.pickle"
+RAW_CACHE_DIR = config.CACHE_DIR / "roi_meshes_raw"
+SHELL_CACHE_FN = config.CACHE_DIR / "cns_shell_cv" / "cns_shell.pickle"
 
 # Segment ids in SHELL_SOURCE that make up each named region. `brain` is
 # everything the source has; `cb` is the central brain alone, matching the
@@ -97,16 +100,13 @@ def fetch_shell(seg_ids: Sequence[int], *, force: bool = False):
     """
     import cloudvolume as cv  # slow import; only needed on a cold cache
 
-    assert os.environ.get("SHELL_SOURCE"), (
-        "Please set the `SHELL_SOURCE` variable in your environment."
-    )
     RAW_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     fn = RAW_CACHE_DIR / f"shell_{'-'.join(str(s) for s in seg_ids)}.pickle"
     if fn.is_file() and not force:
         with fn.open("rb") as fh:
             return pickle.load(fh)
     vol = cv.CloudVolume(
-        f"precomputed://{os.environ['SHELL_SOURCE']}", use_https=True, progress=False
+        f"precomputed://{config.SHELL_SOURCE}", use_https=True, progress=False
     )
     mesh = vol.mesh.get(list(seg_ids))
     mesh.vertices = mesh.vertices / VOXEL_NM
@@ -315,6 +315,15 @@ def warm_shell_cache(*, force: bool = False) -> Path | None:
     return SHELL_CACHE_FN
 
 
+def _require_clone() -> None:
+    """Exit with a clear message unless running from an editable clone."""
+    if config.PROJECT_ROOT is None:
+        raise SystemExit(
+            "make_roi_assets writes into the package's source folder, so it only "
+            "runs from an editable clone of the flyem-analysis-starter repository."
+        )
+
+
 def main() -> None:
     """Build every requested region's assets and refresh the manifest."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -331,18 +340,19 @@ def main() -> None:
     parser.add_argument(
         "--skip-shell-cache",
         action="store_true",
-        help="do not write cache/cns_shell_cv/cns_shell.pickle",
+        help="do not write CACHE_DIR/cns_shell_cv/cns_shell.pickle",
     )
     args = parser.parse_args()
+    _require_clone()
 
     # Merge into any existing manifest so a partial rebuild (one region, one
     # view) does not drop the entries it did not touch.
     previous = json.loads(MANIFEST_FN.read_text()) if MANIFEST_FN.is_file() else {}
     manifest = {
         "generated": date.today().isoformat(),
-        "source": os.environ.get("SHELL_SOURCE", "$SHELL_SOURCE"),
+        "source": config.SHELL_SOURCE,
         "units": f"{VOXEL_NM} nm voxels",
-        "script": "src/setup_data/make_roi_assets.py",
+        "script": "flyem_analysis_starter.plotting.make_roi_assets",
         "regions": previous.get("regions", {}),
     }
     for region in args.regions:

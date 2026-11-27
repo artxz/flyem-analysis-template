@@ -18,17 +18,15 @@
 
 # %%
 """
-This cell does the initial project setup.
-A script with this code uses the location of the `.env` file as the anchor for
-the whole project (= PROJECT_ROOT). Add `src` directory to sys path.
+Project setup. `flyem_analysis_starter` is installed in the Pixi environment, so no
+path setup is needed. Importing `config` reads `.env` (if present) for the neuPrint
+token and optional overrides; `config.DATA_DIR` is where the downloaded data lives.
 """
 from pathlib import Path
 import sys
-from dotenv import load_dotenv, find_dotenv
-load_dotenv()
-PROJECT_ROOT = Path(find_dotenv()).parent
-sys.path.append(str(PROJECT_ROOT.joinpath('src')))
-print(f"Project root directory: {PROJECT_ROOT}")
+
+from flyem_analysis_starter import config, data
+print(f"Data folder: {config.DATA_DIR}")
 
 # Prefer a local connectome_interpreter checkout (CI_DEV_PATH in .env) over the
 # pixi-installed wheel, so edits in the fork take effect via %autoreload 2.
@@ -42,8 +40,8 @@ else:
     print("connectome_interpreter: using the pixi-installed package")
 
 # %%
-from utils import olc_client
-c = olc_client.connect(verbose=True)
+from flyem_analysis_starter.neuprint_client import connect
+c = connect(verbose=True)
 
 # %%
 import pandas as pd
@@ -64,11 +62,11 @@ print(f"connectome_interpreter loaded from: {ci.__file__}")
 dataset = 'malecns_v1.0'
 # dataset = 'fafb_all_neurons'
 
-data_folder = Path(PROJECT_ROOT, 'cache', 'data')
+data_folder = config.DATA_DIR
 
 normalized = True
 
-results_folder = Path(PROJECT_ROOT, 'results', dataset)
+results_folder = config.PROJECT_ROOT / 'results' / dataset
 results_folder.mkdir(parents=True, exist_ok=True)
 
 # %% [markdown] id="w7A8Y5Xnim_B"
@@ -86,7 +84,7 @@ results_folder.mkdir(parents=True, exist_ok=True)
 # %%
 # get meta
 # the idx column records the index of the neuron in inprop
-meta = pd.read_csv(data_folder / f'{dataset}_meta.csv', index_col = 0).reset_index()
+meta = data.load_meta(dataset)
 meta.shape
 
 # %%
@@ -112,7 +110,7 @@ type_to_nt = dict(zip(meta.cell_type, meta.nt))
 # %%
 # connectivity is a sparse matrix
 # pre in rows, post in columns
-conn_mat = sp.sparse.load_npz(data_folder / f'{dataset}_prop.npz') #full integer weights
+conn_mat = data.load_prop(dataset) #full integer weights
 
 # normalize to get input-normalized weights
 if normalized:
@@ -340,7 +338,7 @@ else:
         conn_mat,
         idx_to_instance,
         file_path=data_folder,
-        save_prefix=f'{dataset}_LR_flow_')
+        save_prefix=f'{dataset}_LR_flow_', method=config.FLOW_METHOD)
     paths_flow_df, w_filter, w_all, thre_step = ci.layered_el(
         conn_mat, inidx, outidx, nr_hops_max, idx_to_instance,
         thre_cumsum = weight_frac_cumsum, thre_step_min = thre_step_min,

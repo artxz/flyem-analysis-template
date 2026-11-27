@@ -1,7 +1,7 @@
 [workspace]
-name = "flyem_analysis_template"
-version = "0.1.0"
-description = "Add your project description here."
+name = "flyem-analysis-starter"
+version = "0.1.0.dev0"
+description = "Starter tooling for FlyEM connectome analysis."
 channels = ["flyem-forge", "conda-forge"]
 platforms = ["linux-64", "osx-64", "osx-arm64", "win-64"]
 
@@ -10,7 +10,14 @@ env = { PYTHONUTF8 = "1" }
 
 [tasks]
 lab = "jupyter lab --config jupyter_server_config.py"
-download-eyemaps = "python src/setup_data/download_eyemaps.py"
+download-eyemaps = "python -m flyem_analysis_starter.eyemap.download"
+# Download and verify the prebuilt data (add --dataset <tag> or --all).
+fetch-data = "python -m flyem_analysis_starter.data.fetch"
+# Maintainer only: build the data from neuPrint into cache/build/<tag>
+# (--dataset <tag>, --steps matrices flow, --compare); see data/build.py.
+build-data = "python -m flyem_analysis_starter.data.build"
+# Maintainer only: upload built files as a GitHub data release.
+publish-data = "python -m flyem_analysis_starter.data.publish"
 
 [dependencies]
 python = ">=3.11,<3.12"
@@ -35,6 +42,8 @@ ipykernel = ">=6.29.5,<7"
 jupytext = ">=1.19.1,<2"
 jupyterlab = ">=4.5.4,<5"
 openpyxl = ">=3.1,<4"
+platformdirs = ">=4"
+shapely = ">=2"
 
 # CPU-only conda-forge build so pip's resolver (see connectome-interpreter's
 # `torch` requirement below) doesn't fall back to a PyPI wheel that bundles
@@ -49,9 +58,15 @@ pip = ">=24"
 alphashape = ">=1.3.1,<2"
 
 [pypi-dependencies]
+# This repository's own package, editable: changes in src/ apply without reinstalling.
+flyem-analysis-starter = { path = ".", editable = true }
 python-dotenv = "==1.0.0"
-connectome-interpreter = { git = "https://github.com/artxz/connectome_interpreter.git", branch = "az-eyemap-path" }
-navis = { git = "https://github.com/artxz/navis.git", rev = "93de9aff5ca913407f9d85983a9f4e3c6a8c5dd5" }
+# Pinned to the head of branch az-update-navis-call (adds `method` to the flow functions, for
+# config.FLOW_METHOD, on top of az-eyemap-path). Pinned so a re-solve cannot change the data build.
+connectome-interpreter = { git = "https://github.com/artxz/connectome_interpreter.git", rev = "d2f9f1658e940ff44d0df0f327e40d58a6d667b2" }
+# Pinned to the head of branch pr/bayesian-speedup, upstream PR navis-org/navis#202 (batched
+# BayesianTraversalModel.run, method="legacy"). Switch to a navis release once the PR is released.
+navis = { git = "https://github.com/artxz/navis.git", rev = "ecb4e5bd6d54b957a775dd371f6955e03b382103" }
 flybrains = ">=0.5.2, <0.6"
 cloud-volume = ">=12.15.0, <13"
 

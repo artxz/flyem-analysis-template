@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Hosted data files for flyem_analysis_starter.data.fetch_data(). Entries are written by `pixi run publish-data`; do not edit by hand.",
+  "files": []
+}
