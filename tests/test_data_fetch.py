@@ -8,6 +8,7 @@ from __future__ import annotations
 import functools
 import hashlib
 import http.server
+import json
 import re
 import threading
 from collections.abc import Iterator
@@ -168,7 +169,13 @@ def test_publish_entries_round_trip_through_fetch(server, tmp_path):
     files = publish._dataset_files(tag, src)
     assert [p.name for p in files] == [f"{tag}_meta.csv", f"{tag}_prop.npz"]
     release = f"data-{tag}-r1"
-    entries = publish._build_entries(files, tag, release, "owner/repo", "test")
+    entries = publish._build_entries(
+        files,
+        tag,
+        release,
+        "owner/repo",
+        dict.fromkeys((p.name for p in files), "test"),
+    )
     assert entries[0]["urls"] == [
         f"https://github.com/owner/repo/releases/download/{release}/{tag}_meta.csv"
     ]
@@ -197,6 +204,88 @@ def test_publish_refuses_reused_tag_and_bad_names(tmp_path):
     (tmp_path / "toy_v1_meta (1).csv").write_text("x")
     with pytest.raises(ValueError, match="GitHub would rename"):
         publish._dataset_files("toy_v1", tmp_path)
+
+
+class _FakeGitHub:
+    """Stand-in for `gh` and `git` in `publish.main`; records the gh calls."""
+
+    def __init__(self, pushed: bool) -> None:
+        self.pushed = pushed
+        self.gh_calls: list[tuple[str, ...]] = []
+        self.uploaded: dict[str, Path] = {}
+
+    def git(self, *args: str) -> str:
+        """Answer `rev-parse HEAD` and `branch -r --contains`."""
+        if args[:2] == ("rev-parse", "HEAD"):
+            return "f" * 40
+        if args[:3] == ("branch", "-r", "--contains"):
+            return "origin/main" if self.pushed else ""
+        raise AssertionError(f"unexpected git call {args}")
+
+    def gh(self, *args: str) -> str:
+        """Answer `repo view`, record `release create`, report the uploads."""
+        self.gh_calls.append(args)
+        if args[:2] == ("repo", "view"):
+            return "owner/repo\n"
+        if args[:2] == ("release", "create"):
+            positional = args[3 : next(i for i, a in enumerate(args) if a[:2] == "--")]
+            self.uploaded = {Path(a).name: Path(a) for a in positional}
+        if args[:2] == ("release", "view"):
+            assets = [
+                {"name": n, "size": p.stat().st_size,
+                 "digest": f"sha256:{fetch._sha256(p)}"}
+                for n, p in self.uploaded.items()
+            ]  # fmt: skip
+            return json.dumps({"assets": assets})
+        return ""
+
+
+@pytest.fixture
+def publish_env(tmp_path, monkeypatch):
+    """Point `publish.main` at a temporary manifest and two dataset files."""
+    tag = config.DEFAULT_DATASET
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / f"{tag}_meta.csv").write_text("a,b\n1,2\n")
+    (src / f"{tag}_prop.npz").write_bytes(b"\x00\x01" * 50)
+    manifest = tmp_path / "data_manifest.json"
+    manifest.write_text(json.dumps({"schema_version": 1, "files": []}))
+    monkeypatch.setattr(publish, "_manifest_path", lambda: manifest)
+    argv = ["--dataset", tag, "--tag", f"data-{tag}-r1", "--data-dir", str(src)]
+    return argv, manifest
+
+
+@pytest.mark.parametrize("pushed", [True, False])
+def test_publish_tags_head_and_requires_it_pushed(
+    publish_env, monkeypatch, capsys, pushed
+):
+    argv, manifest = publish_env
+    fake = _FakeGitHub(pushed)
+    monkeypatch.setattr(publish, "_git", fake.git)
+    monkeypatch.setattr(publish, "_gh", fake.gh)
+
+    def released() -> list[tuple[str, ...]]:
+        return [c for c in fake.gh_calls if c[0] == "release"]
+
+    # A dry run never touches releases, and only warns about an unpushed HEAD.
+    publish.main([*argv, "--dry-run"])
+    assert released() == []
+    assert ("not on any remote branch" in capsys.readouterr().out) is not pushed
+
+    if not pushed:
+        with pytest.raises(SystemExit, match="not on any remote branch"):
+            publish.main(argv)
+        assert released() == []
+        assert json.loads(manifest.read_text())["files"] == []
+        return
+
+    publish.main(argv)
+    create = next(c for c in released() if c[1] == "create")
+    assert create[create.index("--target") + 1] == "f" * 40
+    assert "--draft" in create and "--latest=false" in create
+    entries = json.loads(manifest.read_text())["files"]
+    assert {e["name"] for e in entries} == set(fake.uploaded)
+    assert {e["source"] for e in entries} == {publish._UNBUILT_SOURCE}
 
 
 def test_every_dataset_has_licence_and_citation():

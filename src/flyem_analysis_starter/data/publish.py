@@ -7,9 +7,10 @@ Usage, from a clone with the GitHub command-line tool (`gh`) logged in, after
         --data-dir cache/build/malecns_v1.0
 
 It hashes every `<dataset>_*` file in `--data-dir` (default `config.DATA_DIR`),
-takes their provenance from the folder's `build_manifest.json` (refusing files
-that changed since the build), creates the release as a
-draft with `--latest=false` (so "latest release" stays the code release),
+takes each file's provenance from the folder's `build_manifest.json` (refusing
+files that changed since the build), refuses to run unless HEAD is already on
+GitHub, creates the release as a draft tagged at HEAD with `--latest=false`
+(so "latest release" stays the code release),
 uploads the files, checks GitHub's copies against the local sizes and hashes,
 publishes the release, and only then writes the entries into the package's
 `params/data_manifest.json`. The manifest therefore always matches what was
@@ -28,7 +29,7 @@ import re
 import subprocess
 import sys
 import tempfile
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -71,12 +72,13 @@ _LICENSES = {
 _UNBUILT_SOURCE = "files not made by build-data (no build_manifest.json)"
 
 
-def _build_source(folder: Path, files: Sequence[Path]) -> str | None:
-    """Return the build provenance of `files` from the folder's build manifest.
+def _build_sources(folder: Path, files: Sequence[Path]) -> dict[str, str] | None:
+    """Return each file's build provenance from the folder's build manifest.
 
     Returns:
-        The code versions recorded by `build-data` for the steps that made the
-        files, joined with "; ", or None if the folder has no build manifest.
+        A mapping from file name to the code version recorded by `build-data`
+        for the step that made that file, or None if the folder has no build
+        manifest.
 
     Raises:
         ValueError: A file is not in the manifest or has changed since the
@@ -86,16 +88,15 @@ def _build_source(folder: Path, files: Sequence[Path]) -> str | None:
     if not path.is_file():
         return None
     steps = json.loads(path.read_text(encoding="utf-8"))["steps"]
-    sources = []
+    sources = {}
     for f in files:
         step = next((s for s in steps.values() if f.name in s["outputs"]), None)
         if step is None:
             raise ValueError(f"{f.name} was not made by build-data ({path})")
         if step["outputs"][f.name] != _sha256(f):
             raise ValueError(f"{f.name} has changed since build-data wrote it")
-        if step["source"] not in sources:
-            sources.append(step["source"])
-    return "; ".join(sources)
+        sources[f.name] = step["source"]
+    return sources
 
 
 def _manifest_path() -> Path:
@@ -134,9 +135,12 @@ def _build_entries(
     dataset: str,
     tag: str,
     repo: str,
-    source: str,
+    sources: Mapping[str, str],
 ) -> list[dict[str, Any]]:
-    """Describe each file as a manifest entry (hash, size, URL, provenance)."""
+    """Describe each file as a manifest entry (hash, size, URL, provenance).
+
+    `sources` maps each file name to the code version that built it.
+    """
     neuprint_name = config.DATASETS[dataset].name
     entries = []
     for path in files:
@@ -153,7 +157,7 @@ def _build_entries(
                 "sha256": _sha256(path),
                 "size": path.stat().st_size,
                 "build_date": mtime.date().isoformat(),
-                "source": source,
+                "source": sources[path.name],
                 "license": _LICENSES[dataset][0],
             }
         )
@@ -184,8 +188,15 @@ def _release_notes(dataset: str, entries: Sequence[dict[str, Any]], commit: str)
         "`flyem_analysis_starter.data.fetch_data()` in any install. Files are "
         "listed with their SHA-256 hashes in the package's `data_manifest.json`.",
         "",
-        f"- Code commit when published: `{commit}`",
-        f"- Built by: {entries[0]['source']}",
+        f"- Release tag points at code commit `{commit}`",
+        "- Built by:",
+    ]
+    by_source: dict[str, list[str]] = {}
+    for e in entries:
+        by_source.setdefault(e["source"], []).append(e["name"])
+    for source, names in by_source.items():
+        lines.append(f"  - {source}: " + ", ".join(f"`{n}`" for n in names))
+    lines += [
         "",
         "| File | Size (MiB) | Build date | SHA-256 |",
         "| --- | --- | --- | --- |",
@@ -215,10 +226,39 @@ def _release_notes(dataset: str, entries: Sequence[dict[str, Any]], commit: str)
 
 def _gh(*args: str) -> str:
     """Run a `gh` command and return its stdout, exiting on failure."""
-    result = subprocess.run(["gh", *args], capture_output=True, text=True)
+    result = subprocess.run(["gh", *args], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         sys.exit(f"gh {' '.join(args[:3])} failed:\n{result.stderr}")
     return result.stdout
+
+
+def _git(*args: str) -> str:
+    """Run a `git` command in the clone and return its stripped stdout."""
+    result = subprocess.run(
+        ["git", *args],
+        cwd=config.PROJECT_ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        sys.exit(f"git {' '.join(args[:2])} failed:\n{result.stderr}")
+    return result.stdout.strip()
+
+
+def _unpushed_reason(commit: str) -> str | None:
+    """Say why the release cannot cite `commit`, or return None if it can.
+
+    The release tag points at `commit` and the notes link to it, so it must
+    already be on GitHub: on a remote-tracking branch, per the last fetch.
+    """
+    if not _git("branch", "-r", "--contains", commit):
+        return (
+            f"HEAD ({commit[:7]}) is not on any remote branch, so the release "
+            "would point at a commit GitHub does not have. Push it first "
+            "(ideally merged into main), then rerun."
+        )
+    return None
 
 
 def _check_uploaded(repo: str, tag: str, entries: Sequence[dict[str, Any]]) -> None:
@@ -262,27 +302,30 @@ def main(argv: Sequence[str] | None = None) -> None:
 
     repo = _gh("repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner")
     repo = repo.strip()
-    commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=config.PROJECT_ROOT,
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout.strip()
+    commit = _git("rev-parse", "HEAD")
+    unpushed = _unpushed_reason(commit)
+    if unpushed and not args.dry_run:
+        sys.exit(f"error: {unpushed}")
 
     files = _dataset_files(args.dataset, args.data_dir)
     print(f"Hashing {len(files)} files in {args.data_dir} ...")
-    try:
-        source = args.source or _build_source(args.data_dir, files) or _UNBUILT_SOURCE
-    except ValueError as exc:
-        sys.exit(f"error: {exc}")
-    entries = _build_entries(files, args.dataset, args.tag, repo, source)
+    if args.source:
+        sources = dict.fromkeys((f.name for f in files), args.source)
+    else:
+        try:
+            built = _build_sources(args.data_dir, files)
+        except ValueError as exc:
+            sys.exit(f"error: {exc}")
+        sources = built or dict.fromkeys((f.name for f in files), _UNBUILT_SOURCE)
+    entries = _build_entries(files, args.dataset, args.tag, repo, sources)
     _add_entries(manifest, entries)  # validates the tag before any upload
     notes = _release_notes(args.dataset, entries, commit)
 
     if args.dry_run:
         print(notes)
         print(json.dumps(entries, indent=2))
+        if unpushed:
+            print(f"warning: {unpushed}")
         return
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -290,7 +333,7 @@ def main(argv: Sequence[str] | None = None) -> None:
         notes_file.write_text(notes, encoding="utf-8")
         _gh(
             "release", "create", args.tag, *map(str, files),
-            "--draft", "--latest=false",
+            "--draft", "--latest=false", "--target", commit,
             "--title", f"Data: {args.dataset} r{args.tag.rsplit('-r', 1)[1]}",
             "--notes-file", str(notes_file),
         )  # fmt: skip
